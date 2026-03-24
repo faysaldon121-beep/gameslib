@@ -29,7 +29,6 @@ interface Props {
 async function getGenreData({ genreSlug, page }: { genreSlug: string; page?: number }) {
   await connectDB();
 
-  // Cast the result to IGenre | null
   const genre = (await Genre.findOne({ slug: genreSlug, isActive: true }).lean()) as IGenre | null;
   if (!genre) return null;
 
@@ -105,10 +104,10 @@ export async function generateMetadata({ params }: Props) {
 
 export async function generateStaticParams() {
   await connectDB();
-  const genres = (await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
-    .select('slug')
-    .lean()) as { slug: string }[];
-  return genres.map((genre) => ({ slug: genre.slug }));
+  const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
+    .select('slug -_id') // Select only slug and exclude _id
+    .lean();
+  return (genres as { slug: string }[]).map((genre) => ({ slug: genre.slug }));
 }
 
 export const revalidate = 3600; // ISR
@@ -123,15 +122,15 @@ export default async function GenrePage({ params, searchParams }: Props) {
   const { genre, games, total, ogImage, hasMore } = data;
 
   // Fetch related genres (top 6 by gameCount, excluding current)
-  const relatedGenres = (await Genre.find({
+  const relatedGenres = await Genre.find({
     isActive: true,
     slug: { $ne: slug },
     gameCount: { $gt: 0 },
   })
     .sort({ gameCount: -1 })
     .limit(6)
-    .select('slug name gameCount')
-    .lean()) as { slug: string; name: string; gameCount: number }[];
+    .select('slug name gameCount -_id') // Exclude _id for clean type
+    .lean();
 
   // Enhanced Schema
   const schema = {
@@ -260,7 +259,7 @@ export default async function GenrePage({ params, searchParams }: Props) {
             <section className="mt-12">
               <h2 className="text-xl font-bold text-white mb-4">Related Genres</h2>
               <div className="flex flex-wrap gap-3">
-                {relatedGenres.map((related) => (
+                {relatedGenres.map((related: any) => (
                   <Link
                     key={related.slug}
                     href={`/genre/${related.slug}`}
