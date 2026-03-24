@@ -5,7 +5,7 @@ import { GENRES } from "@/lib/utils";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connectDB();
-  const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib-chi.vercel.app/";
+  const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app/";
   const games = await Game.find({}, "slug updatedAt isFeatured averageRating").lean();
 
   const staticPages: MetadataRoute.Sitemap = [
