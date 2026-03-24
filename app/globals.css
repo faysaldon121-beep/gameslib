@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #07070f;
+  --card: #0f0f1a;
+  --border: #1c1c2e;
+  --purple: #7c3aed;
+  --text: #e2e8f0;
+  --muted: #64748b;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a855f7; }
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 25%, #1a1a2e 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-g-purple hover:bg-g-purpleLight text-white font-semibold transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-g-purple;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-g-card border border-g-border hover:border-g-purple text-g-text font-semibold transition-all duration-200 hover:scale-105;
+  }
+  .card {
+    @apply bg-g-card border border-g-border rounded-xl transition-all duration-200 hover:border-g-purple/50;
+  }
+  .input {
+    @apply w-full bg-g-card border border-g-border rounded-lg px-4 py-2.5 text-g-text placeholder-g-muted focus:outline-none focus:border-g-purple transition-colors;
+  }
+  .section-title {
+    @apply text-2xl font-bold text-g-text mb-1;
+  }
+  .section-sub {
+    @apply text-g-muted text-sm mb-6;
+  }
+}
