@@ -61,7 +61,7 @@ export default async function FeaturedGenres() {
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {grouped.map(([letter, genres]) => (
+            {grouped.map(({ letter, genres }) => (
               <div key={letter} className="space-y-3">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-sm font-bold text-white">
