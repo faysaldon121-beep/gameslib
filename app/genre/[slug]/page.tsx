@@ -12,33 +12,39 @@ interface Props {
   searchParams: { page?: string };
 }
 
-async function getGenreData(genreSlug: string) {
+async function getGenreData({ genreSlug, page }: { genreSlug: string; page?: number }) {
   await connectDB();
+
   const genre = await Genre.findOne({ slug: genreSlug, isActive: true }).lean();
   if (!genre) return null;
 
-  const page = parseInt((searchParams?.page || '1') as string, 10);
-  const limit = 24;
-  const skip = (page - 1) * limit;
+  const total = await Game.countDocuments({ genre: { $regex: genre.name, $options: 'i' } });
 
-  const gamesQuery = Game.find({ 
-    genre: { $regex: genre.name, $options: 'i' }
-  }).sort({ averageRating: -1 }).select('title slug coverImage genre averageRating reviewCount year size shortDescription');
+  let games: any[] = [];
+  let hasMore = false;
 
-  const [games, total] = await Promise.all([
-    gamesQuery.limit(limit).skip(skip).lean(),
-    Game.countDocuments({ genre: { $regex: genre.name, $options: 'i' } }),
-  ]);
+  if (page !== undefined) {
+    const limit = 24;
+    const skip = (page - 1) * limit;
+    games = await Game.find({ genre: { $regex: genre.name, $options: 'i' } })
+      .sort({ averageRating: -1 })
+      .select('title slug coverImage genre averageRating reviewCount year size shortDescription')
+      .limit(limit)
+      .skip(skip)
+      .lean();
 
-  // Use first game for OG image if available
+    hasMore = skip + games.length < total;
+  }
+
   const ogImage = games[0]?.coverImage || genre.ogImage;
 
-  return { genre, games, total, ogImage, page, hasMore: skip + games.length < total };
+  return { genre, games, total, ogImage, page, hasMore };
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const data = await getGenreData(slug);
+  const data = await getGenreData({ genreSlug: slug }); // without page, only metadata
+
   if (!data?.genre) {
     return {
       title: 'Genre Not Found - Gameslib',
@@ -78,24 +84,34 @@ export async function generateMetadata({ params }: Props) {
       title: genre.metaTitle || `${genre.name} Games - Gameslib`,
       description: genre.metaDescription || `Free ${keyword} downloads.`,
       images: [ogImage],
-      site: '@gameslib',  // Update with your Twitter handle
+      site: '@gameslib', // Replace with your actual handle
     },
   };
 }
 
 export async function generateStaticParams() {
   await connectDB();
-  const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } }).select('slug').lean();  // Only popular ones for SSG
+  const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } }).select('slug').lean();
   return genres.map((genre: any) => ({ slug: genre.slug }));
 }
 
-export const revalidate = 3600;  // ISR for fresh counts
+export const revalidate = 3600; // ISR
 
 export default async function GenrePage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { genre, games, total, ogImage, page, hasMore } = await getGenreData(slug);
+  const page = parseInt(searchParams?.page || '1', 10);
+  const data = await getGenreData({ genreSlug: slug, page });
 
-  if (!genre) notFound();
+  if (!data?.genre) notFound();
+
+  const { genre, games, total, ogImage, hasMore } = data;
+
+  // Fetch related genres (top 6 by gameCount, excluding current)
+  const relatedGenres = await Genre.find({ isActive: true, slug: { $ne: slug }, gameCount: { $gt: 0 } })
+    .sort({ gameCount: -1 })
+    .limit(6)
+    .select('slug name gameCount')
+    .lean();
 
   // Enhanced Schema
   const schema = {
@@ -120,20 +136,22 @@ export default async function GenrePage({ params, searchParams }: Props) {
         },
       })),
     },
-    // Breadcrumb already in component
   };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
       <div className="min-h-screen bg-[#0a0e27] py-12">
         <div className="max-w-7xl mx-auto px-4">
-          <Breadcrumbs 
-            current={genre.name} 
+          <Breadcrumbs
+            current={genre.name}
             parents={[
               { name: 'Genres', href: '/genres' },
               { name: 'Home', href: '/' },
-            ]} 
+            ]}
           />
 
           {/* Hero Section */}
@@ -146,10 +164,15 @@ export default async function GenrePage({ params, searchParams }: Props) {
               className="mx-auto mb-4 opacity-80"
               priority
             />
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 capitalize">{genre.name}</h1>
-            <p className="text-gray-400 max-w-3xl mx-auto mb-6 leading-relaxed">{genre.description}</p>
+            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 capitalize">
+              {genre.name}
+            </h1>
+            <p className="text-gray-400 max-w-3xl mx-auto mb-6 leading-relaxed">
+              {genre.description}
+            </p>
             <p className="text-sm text-gray-500 mb-8">
-              Showing {games.length} of {total.toLocaleString()} {genre.name.toLowerCase()} games • Page {page}
+              Showing {games.length} of {total.toLocaleString()} {genre.name.toLowerCase()} games • Page{' '}
+              {page}
             </p>
             <Link
               href={`/genre/${slug}`}
@@ -160,16 +183,18 @@ export default async function GenrePage({ params, searchParams }: Props) {
           </div>
 
           {/* Games Grid */}
-          <Suspense fallback={
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 h-96">
-              <div className="aspect-[2/3] bg-g-card rounded-lg skeleton" />
-            </div>
-          }>
+          <Suspense
+            fallback={
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 h-96">
+                <div className="aspect-[2/3] bg-g-card rounded-lg skeleton" />
+              </div>
+            }
+          >
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
               {games.map((game: any) => (
-                <Link 
-                  key={game.slug} 
-                  href={`/game/${game.slug}`} 
+                <Link
+                  key={game.slug}
+                  href={`/game/${game.slug}`}
                   className="group relative block"
                   title={`Download ${game.title} - Free ${genre.name} PC Game`}
                 >
@@ -198,26 +223,24 @@ export default async function GenrePage({ params, searchParams }: Props) {
             </div>
           </Suspense>
 
-          {/* Pagination & Related */}
+          {/* Pagination */}
           {hasMore && (
             <div className="text-center mb-8">
               <Link
                 href={`/genre/${slug}?page=${page + 1}`}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
               >
-                Load More ({total - (page * 24)} more {genre.name.toLowerCase()} games)
+                Load More ({total - page * 24} more {genre.name.toLowerCase()} games)
               </Link>
             </div>
           )}
 
-          {/* Related Genres (Internal Links) */}
-          <section className="mt-12">
-            <h2 className="text-xl font-bold text-white mb-4">Related Genres</h2>
-            <div className="flex flex-wrap gap-3">
-              {genres
-                .filter((g: any) => g.slug !== slug && g.gameCount > 0)
-                .slice(0, 6)
-                .map((related: any) => (
+          {/* Related Genres */}
+          {relatedGenres.length > 0 && (
+            <section className="mt-12">
+              <h2 className="text-xl font-bold text-white mb-4">Related Genres</h2>
+              <div className="flex flex-wrap gap-3">
+                {relatedGenres.map((related: any) => (
                   <Link
                     key={related.slug}
                     href={`/genre/${related.slug}`}
@@ -226,8 +249,9 @@ export default async function GenrePage({ params, searchParams }: Props) {
                     {related.name} ({related.gameCount})
                   </Link>
                 ))}
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </>
