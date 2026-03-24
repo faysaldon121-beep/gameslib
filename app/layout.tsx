@@ -14,8 +14,7 @@ export const metadata: Metadata = {
     template: "%s | Gameslib",
   },
   description: "Download free PC games with direct links, system requirements, and installation guides. Browse 500+ games across all genres.",
-  keywords
-],
+  keywords,
   authors: [{ name: "Gameslib", url: SITE_URL }],
   creator: "Gameslib",
   openGraph: {
