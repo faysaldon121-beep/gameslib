@@ -139,10 +139,6 @@ export function truncate(str: string, length: number): string {
   return str.length > length ? `${str.slice(0, length)}...` : str;
 }
 
-export const GENRES = [
-  "Action", "RPG", "Strategy", "Sports", "Horror",
-  "Simulation", "Adventure", "Puzzle", "Racing", "Shooter",
-] as const;
 
 export type Genre = (typeof GENRES)[number];
 
