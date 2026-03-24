@@ -23,11 +23,10 @@ interface GroupedGenre {
 async function getGroupedGenres(): Promise<GroupedGenre[]> {
   await connectDB();
 
-  const genres = (await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
+   const genres = (await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
     .select('name slug description icon gameCount')
     .sort({ name: 1 })
-    .lean()) as GenreDoc[];
-
+    .lean()) as unknown as GenreDoc[];
   // Group by first letter
   const letterMap = new Map<string, GenreDoc[]>();
 
