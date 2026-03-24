@@ -7,6 +7,20 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Breadcrumbs from '@/components/Breadcrumbs';
 
+// Define the Genre type
+interface IGenre {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  isActive?: boolean;
+  gameCount?: number;
+}
+
 interface Props {
   params: Promise<{ slug: string }>;
   searchParams: { page?: string };
@@ -15,7 +29,8 @@ interface Props {
 async function getGenreData({ genreSlug, page }: { genreSlug: string; page?: number }) {
   await connectDB();
 
-  const genre = await Genre.findOne({ slug: genreSlug, isActive: true }).lean();
+  // Cast the result to IGenre | null
+  const genre = (await Genre.findOne({ slug: genreSlug, isActive: true }).lean()) as IGenre | null;
   if (!genre) return null;
 
   const total = await Game.countDocuments({ genre: { $regex: genre.name, $options: 'i' } });
@@ -43,8 +58,7 @@ async function getGenreData({ genreSlug, page }: { genreSlug: string; page?: num
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const data = await getGenreData({ genreSlug: slug }); // without page, only metadata
-
+  const data = await getGenreData({ genreSlug: slug }); // only fetch genre data, not games
   if (!data?.genre) {
     return {
       title: 'Genre Not Found - Gameslib',
@@ -91,8 +105,10 @@ export async function generateMetadata({ params }: Props) {
 
 export async function generateStaticParams() {
   await connectDB();
-  const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } }).select('slug').lean();
-  return genres.map((genre: any) => ({ slug: genre.slug }));
+  const genres = (await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
+    .select('slug')
+    .lean()) as { slug: string }[];
+  return genres.map((genre) => ({ slug: genre.slug }));
 }
 
 export const revalidate = 3600; // ISR
@@ -107,11 +123,15 @@ export default async function GenrePage({ params, searchParams }: Props) {
   const { genre, games, total, ogImage, hasMore } = data;
 
   // Fetch related genres (top 6 by gameCount, excluding current)
-  const relatedGenres = await Genre.find({ isActive: true, slug: { $ne: slug }, gameCount: { $gt: 0 } })
+  const relatedGenres = (await Genre.find({
+    isActive: true,
+    slug: { $ne: slug },
+    gameCount: { $gt: 0 },
+  })
     .sort({ gameCount: -1 })
     .limit(6)
     .select('slug name gameCount')
-    .lean();
+    .lean()) as { slug: string; name: string; gameCount: number }[];
 
   // Enhanced Schema
   const schema = {
@@ -240,7 +260,7 @@ export default async function GenrePage({ params, searchParams }: Props) {
             <section className="mt-12">
               <h2 className="text-xl font-bold text-white mb-4">Related Genres</h2>
               <div className="flex flex-wrap gap-3">
-                {relatedGenres.map((related: any) => (
+                {relatedGenres.map((related) => (
                   <Link
                     key={related.slug}
                     href={`/genre/${related.slug}`}
