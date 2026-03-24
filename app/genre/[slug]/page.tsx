@@ -105,9 +105,9 @@ export async function generateMetadata({ params }: Props) {
 export async function generateStaticParams() {
   await connectDB();
   const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
-    .select('slug -_id') // Select only slug and exclude _id
-    .lean();
-  return (genres as { slug: string }[]).map((genre) => ({ slug: genre.slug }));
+    .select('slug -_id')
+    .lean<{ slug: string }[]>();
+  return genres.map((genre) => ({ slug: genre.slug }));
 }
 
 export const revalidate = 3600; // ISR
