@@ -51,29 +51,34 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 function buildGameSchema(game: any, reviews: any[]) {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.net";
-  const appSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    '@id': `${base}/games/${game.slug}#software`,
-    name: game.title,
-    applicationCategory: 'Game',
-    applicationSubCategory: game.genre,
-    operatingSystem: (game.platforms || []).join(', '),
-    softwareVersion: game.version,
-    description: game.description,
-    image: game.images?.[0] ?? game.coverImage,
-    url: `${base}/games/${game.slug}`,
-    downloadUrl: game.downloadLinks?.[0]?.url,
-    fileSize: game.fileSize,
-    datePublished: new Date(game.releaseDate).toISOString(),
-    dateModified: new Date(game.updatedAt).toISOString(),
-    author: { '@type': 'Organization', name: game.developer ?? 'Unknown' },
-    publisher: { '@type': 'Organization', name: game.publisher ?? 'Unknown' },
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
-    ...(game.reviewCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(game.averageRating || 0).toFixed(1), reviewCount: game.reviewCount, bestRating: '5', worstRating: '1' } } : {}),
-    ...(reviews.length > 0 ? { review: reviews.slice(0, 5).map((r) => ({ '@type': 'Review', name: r.title, reviewBody: r.body, reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: '5', worstRating: '1' }, author: { '@type': 'Person', name: r.userName }, datePublished: new Date(r.createdAt).toISOString() })) } : {}),
-  };
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
+  const safeISOString = (date) => {
+  const d = new Date(date);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+};
+
+const appSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  '@id': `${base}/games/${game.slug}#software`,
+  name: game.title,
+  applicationCategory: 'Game',
+  applicationSubCategory: game.genre,
+  operatingSystem: (game.platforms || []).join(', '),
+  softwareVersion: game.version,
+  description: game.description,
+  image: game.images?.[0] ?? game.coverImage,
+  url: `${base}/games/${game.slug}`,
+  downloadUrl: game.downloadLinks?.[0]?.url,
+  fileSize: game.fileSize,
+  datePublished: safeISOString(game.releaseDate),
+  dateModified: safeISOString(game.updatedAt),
+  author: { '@type': 'Organization', name: game.developer ?? 'Unknown' },
+  publisher: { '@type': 'Organization', name: game.publisher ?? 'Unknown' },
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
+  ...(game.reviewCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(game.averageRating || 0).toFixed(1), reviewCount: game.reviewCount, bestRating: '5', worstRating: '1' } } : {}),
+  ...(reviews.length > 0 ? { review: reviews.slice(0, 5).map((r) => ({ '@type': 'Review', name: r.title, reviewBody: r.body, reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: '5', worstRating: '1' }, author: { '@type': 'Person', name: r.userName }, datePublished: safeISOString(r.createdAt) })) } : {}),
+};
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
