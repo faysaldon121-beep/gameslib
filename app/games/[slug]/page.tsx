@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 function buildGameSchema(game: any, reviews: any[]) {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
-  const safeISOString = (date) => {
+  const safeISOString = (date:any) => {
   const d = new Date(date);
   return isNaN(d.getTime()) ? undefined : d.toISOString();
 };
