@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/donate`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/sponsors`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE}/request`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE}/top`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 }
   ];
 
   const gamePages: MetadataRoute.Sitemap = games.map((game: any) => {
