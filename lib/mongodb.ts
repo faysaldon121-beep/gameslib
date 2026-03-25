@@ -30,6 +30,7 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
 
   cache.conn = await cache.promise;
+  console.log("Connected to mongo")
   return cache.conn;
 }
 
