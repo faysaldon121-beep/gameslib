@@ -91,7 +91,7 @@ const GameSchema = new Schema<IGame>({
 }, { timestamps: true });
 
 GameSchema.index({ title: "text", description: "text", tags: "text" });
-GameSchema.index({ slug: 1 });
+// Removed duplicate index: GameSchema.index({ slug: 1 });
 GameSchema.index({ genre: 1 });
 GameSchema.index({ isFeatured: -1, averageRating: -1 });
 
