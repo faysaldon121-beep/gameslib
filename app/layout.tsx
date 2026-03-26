@@ -3,7 +3,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import keywordsData from "@/lib/keywords.json";
-
+import Script from 'next/script';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
 const keywords = keywordsData.map((item: { text: string }) => item.text);
 
@@ -45,6 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+         <Script
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9450117740233483"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
       </body>
     </html>
   );
