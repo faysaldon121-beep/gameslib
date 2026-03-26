@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     default: "Gameslib — Free PC Games Download",
     template: "%s | Gameslib",
   },
+   verification: {
+    google: 'Oxz_vV17FHU_g0ColbVp2jZ2ANwgg1udZlvwTRMrqgI',
+  },
   description: "Download free PC games with direct links, system requirements, and installation guides. Browse 500+ games across all genres.",
   keywords,
   authors: [{ name: "Gameslib", url: SITE_URL }],
