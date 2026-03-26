@@ -5,11 +5,12 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "res.cloudinary.com" },
-      { protocol: "https", hostname: "utfs.io" },
-      { protocol: "https", hostname: "placehold.co" },
-      { protocol: "https", hostname: "images.igdb.com" },
-    ],
+    { protocol: "https", hostname: "res.cloudinary.com" },
+    { protocol: "https", hostname: "utfs.io" },
+    { protocol: "https", hostname: "placehold.co" },
+    { protocol: "https", hostname: "images.igdb.com" },
+    { protocol: "https", hostname: "peskgames.com" }, 
+  ],
     formats: ["image/avif", "image/webp"],
   },
   async headers() {
