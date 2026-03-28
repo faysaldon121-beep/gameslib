@@ -1,4 +1,4 @@
-// app/api/games/download/[slug]/file/route.ts
+// app/api/games/download/[slug]/file/route.ts (full)
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
@@ -17,13 +17,11 @@ export async function GET(
       return NextResponse.json({ error: 'Game/download unavailable' }, { status: 404 });
     }
 
-    // Validate session & get response w/ used=true cookie
     const validatedResponse = getValidatedResponse(request, String(game._id));
     if (validatedResponse.status !== 200) {
       return validatedResponse;
     }
 
-    // Proxy file
     const fileResponse = await fetch(game.downloadLinks[0].url);
     if (!fileResponse.ok) {
       return NextResponse.json({ error: 'File unavailable' }, { status: 503 });
@@ -33,15 +31,15 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': fileResponse.headers.get('content-type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}"`,
+        'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}.zip"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-Content-Type-Options': 'nosniff',
       },
     });
 
-    // Copy validated cookie to final response
+    // Append validated cookie
     validatedResponse.headers.forEach((value, key) => {
-      if (key === 'set-cookie') {
+      if (key.toLowerCase() === 'set-cookie') {
         response.headers.append(key, value);
       }
     });
