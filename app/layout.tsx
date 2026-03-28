@@ -6,7 +6,7 @@ import keywordsData from "@/lib/keywords.json";
 import Script from 'next/script';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
 const keywords = keywordsData.map((item: { text: string }) => item.text);
-import { SessionProvider } from '@/lib/auth'; //
+import { SessionProvider } from 'next-auth/react';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
