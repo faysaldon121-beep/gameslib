@@ -1,86 +1,42 @@
-// lib/mongodb.ts (full replacement)
+// lib/mongodb.ts
 import mongoose from 'mongoose';
 import { MongoClient } from 'mongodb';
 
-// --- START FIX for "Element implicitly has an 'any' type" error ---
-// Declare types for global variables to safely cache database connections
-declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  };
-  var mongo: {
-    conn: MongoClient | null;
-    promise: Promise<MongoClient> | null;
-  };
-}
-// --- END FIX ---
-
-// Mongoose connection caching
-if (!global.mongoose) {
-  global.mongoose = { conn: null, promise: null };
-}
-
 const MONGODB_URI = process.env.MONGODB_URI!;
+if (!MONGODB_URI) throw new Error('MONGODB_URI not set');
 
-if (!MONGODB_URI) {
-  throw new Error(
-    'Please define the MONGODB_URI environment variable inside .env.local'
-  );
+// --- Type Declarations for Global Object ---
+// This ensures TypeScript knows about the properties we're adding to the global scope.
+declare global {
+  namespace NodeJS {
+    interface Global {
+      _cachedMongoose: typeof mongoose | null;
+      _cachedClientPromise: Promise<MongoClient> | null;
+    }
+  }
+}
+// --- End Type Declarations ---
+
+let cachedMongoose: typeof mongoose | null = global._cachedMongoose || null;
+let cachedClientPromise: Promise<MongoClient> | null = global._cachedClientPromise || null;
+
+export async function connectMongoose() {
+  if (cachedMongoose) return cachedMongoose;
+  
+  // Connect to MongoDB using Mongoose
+  const conn = await mongoose.connect(MONGODB_URI);
+  cachedMongoose = conn;
+  // Cache the connection on the global object
+  global._cachedMongoose = cachedMongoose;
+  return cachedMongoose;
 }
 
-export async function connectDB() {
-  // If connection is already established, return
-  if (global.mongoose?.conn?.connections[0]?.readyState === 1) {
-    console.log("Using existing Mongoose connection.");
-    return global.mongoose.conn;
-  }
-
-  // If no connection or previous promise, create a new one
-  if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(MONGODB_URI);
-  }
-
-  try {
-    global.mongoose.conn = await global.mongoose.promise;
-    console.log("New Mongoose connection established.");
-  } catch (error) {
-    // If connection fails, reset the promise to retry next time
-    global.mongoose.promise = null;
-    console.error("Mongoose connection failed:", error);
-    throw error;
-  }
-  return global.mongoose.conn;
+// Setup for the native MongoDB driver client promise for Auth.js adapter
+if (!cachedClientPromise) {
+  const client = new MongoClient(MONGODB_URI);
+  cachedClientPromise = client.connect();
+  // Cache the client promise on the global object
+  global._cachedClientPromise = cachedClientPromise;
 }
 
-// MongoDB Client connection caching for Auth.js Adapter
-let cached = global.mongo;
-
-if (!cached) {
-  cached = global.mongo = { conn: null, promise: null };
-}
-
-async function clientPromise() {
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false, // Disables Mongoose's buffering
-    };
-    cached.promise = new MongoClient(MONGODB_URI, opts).connect();
-  }
-
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null; // Clear promise on error to retry
-    console.error("MongoDB Client connection failed:", e);
-    throw e;
-  }
-
-  return cached.conn;
-}
-
-export default clientPromise;
+export const clientPromise = cachedClientPromise!;
