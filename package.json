@@ -17,9 +17,11 @@
     "@stripe/stripe-js": "^4.1.0",
     "lucide-react": "^0.427.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.4.0"
+    "tailwind-merge": "^2.4.0",
+     "iron-session": "^8.0.0"
   },
   "devDependencies": {
+    "@types/iron-session": "^8.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
