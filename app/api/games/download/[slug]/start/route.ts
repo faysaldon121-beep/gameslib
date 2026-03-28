@@ -16,13 +16,12 @@ export async function POST(
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
-    // Generate secure session (sets cookie)
     await generateDownloadSession(String(game._id));
 
     return NextResponse.json({ 
       success: true, 
       title: game.title,
-      message: 'Session ready. Download will start after countdown.'
+      message: 'Secure session created (1 hour expiry).'
     });
   } catch (error) {
     console.error('Download start error:', error);
