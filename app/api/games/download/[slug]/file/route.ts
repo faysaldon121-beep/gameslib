@@ -4,15 +4,17 @@ import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { validateDownloadSession } from '@/lib/downloadSession';
 
+export const runtime = 'nodejs'; // Stable for file proxy/streaming
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Validate session cookie (single-use, expires in 1hr)
+    // Validate signed cookie
     const gameId = await validateDownloadSession(request);
     if (!gameId) {
-      return NextResponse.json({ error: 'Invalid or expired session. Please try again.' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid, expired, or used session. Restart download.' }, { status: 401 });
     }
 
     await connectDB();
@@ -22,7 +24,6 @@ export async function GET(
       return NextResponse.json({ error: 'Download unavailable' }, { status: 404 });
     }
 
-    // Proxy the actual download (hides real URL)
     const fileResponse = await fetch(game.downloadLinks[0].url);
 
     if (!fileResponse.ok) {
