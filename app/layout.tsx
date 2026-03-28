@@ -6,13 +6,18 @@ import keywordsData from "@/lib/keywords.json";
 import Script from 'next/script';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
 const keywords = keywordsData.map((item: { text: string }) => item.text);
-import { SessionProvider } from 'next-auth/react';
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "Gameslib — Free PC Games Download",
     template: "%s | Gameslib",
+  },
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
    verification: {
     google: 'Oxz_vV17FHU_g0ColbVp2jZ2ANwgg1udZlvwTRMrqgI',
@@ -43,16 +48,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen flex flex-col bg-g-bg text-g-text">
-       <SessionProvider>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-         <Script
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9450117740233483"
-          strategy="afterInteractive"
-          crossOrigin="anonymous"
-        />
-         </SessionProvider>
+        <Providers>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <Script
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9450117740233483"
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+          />
+        </Providers>
       </body>
     </html>
   );
