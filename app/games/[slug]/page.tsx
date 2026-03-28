@@ -273,10 +273,6 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
                       <span className="text-g-muted">Genre: <span className="text-white font-medium capitalize" itemProp="applicationSubCategory">{game.genre}</span></span>
                   </div>
               </div>
-              <Link href={`/download/${game.slug}`} className="flex items-center justify-center gap-3 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-6 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs text-lg">
-    <Download size={22} />
-    Download Now
-</Link>
             </section>
 
             {/** Carousel */}
@@ -310,7 +306,10 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
             {game.installationGuide?.length > 0 && (
               <InstallGuide steps={game.installationGuide} title={game.title} />
             )}
-
+    <Link href={`/download/${game.slug}`} className="flex items-center justify-center gap-3 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-6 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs text-lg">
+    <Download size={22} />
+    Download Now
+</Link>
             {/* --- NEW PLAYER STATISTICS SECTION --- */}
             <section aria-labelledby="player-stats-heading" className="card p-5">
               <h2 id="player-stats-heading" className="text-lg font-bold text-white mb-4">Player Statistics</h2>
