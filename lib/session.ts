@@ -7,6 +7,6 @@ export const sessionOptions: IronSessionOptions = {
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
     sameSite: 'strict', // CSRF protection
-    maxAge: 60 * 60 * 1000, // 1 HOUR expiry (3600 seconds)
+    maxAge: 240 * 240 * 1000, // 1 HOUR expiry (3600 seconds)
   },
 };
