@@ -39,4 +39,5 @@ if (!cachedClientPromise) {
   global._cachedClientPromise = cachedClientPromise;
 }
 
-export const clientPromise = cachedClientPromise!;
+const clientPromise = cachedClientPromise!;
+export default clientPromise;
