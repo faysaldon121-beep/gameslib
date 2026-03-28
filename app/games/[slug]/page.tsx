@@ -1,5 +1,4 @@
 // app/games/[slug]/page.tsx
-
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,6 +12,7 @@ import RelatedGames from "@/components/games/RelatedGames";
 import ReviewList from "@/components/reviews/ReviewList";
 import ReviewForm from "@/components/reviews/ReviewForm";
 import Badge from "@/components/ui/Badge";
+import AuthButton from "@/components/auth/AuthButton"; // New component
 import { formatDate } from "@/lib/utils";
 import { Star, Calendar, HardDrive, Monitor, Tag, Download } from "lucide-react";
 
@@ -21,8 +21,6 @@ async function getGame(slug: string) {
   await connectDB();
   const game = await Game.findOne({ slug }).lean();
   if (!game) notFound();
-  // NOTE: Assuming reviewStats are part of the Game model for the "Player Statistics" section
-  // e.g., game.reviewStats = { "5": 1150, "4": 95, "3": 15, "2": 8, "1": 15 }
   return game as any;
 }
 
@@ -36,7 +34,7 @@ async function getReviews(gameSlug: string) {
     .lean();
 }
 
-// generate per‐page <head> metadata
+// generate per‐page <head> metadata (unchanged)
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   await connectDB();
   const game = await Game
@@ -45,7 +43,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .lean() as any;
   if (!game) return { title: "Game Not Found" };
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.net";
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
   const desc = game.shortDescription || String(game.description).slice(0, 160);
 
   return {
@@ -70,128 +68,127 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-// build JSON-LD for rich result markup (no changes needed here)
+// build JSON-LD for rich result markup (unchanged)
 function buildGameSchema(game: any, reviews: any[]) {
-    // This function remains the same as in your original code
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
-    const safeISOString = (date: any) => {
-        const d = new Date(date);
-        return isNaN(d.getTime()) ? undefined : d.toISOString();
-    };
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
+  const safeISOString = (date: any) => {
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  };
 
-    const appSchema = {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "@id": `${base}/games/${game.slug}#software`,
+  const appSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${base}/games/${game.slug}#software`,
+    name: game.title,
+    applicationCategory: "Game",
+    applicationSubCategory: game.genre,
+    operatingSystem: (game.platforms || []).join(", "),
+    softwareVersion: game.version,
+    description: game.description,
+    image: game.images?.[0] ?? game.coverImage,
+    url: `${base}/games/${game.slug}`,
+    downloadUrl: game.downloadLinks?.[0]?.url,
+    fileSize: game.fileSize,
+    datePublished: safeISOString(game.releaseDate),
+    dateModified: safeISOString(game.updatedAt),
+    author: { "@type": "Organization", name: game.developer ?? "Unknown" },
+    publisher: { "@type": "Organization", name: game.publisher ?? "Unknown" },
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    },
+    ...(game.reviewCount > 0 && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: Number(game.averageRating || 0).toFixed(1),
+        reviewCount: game.reviewCount,
+        bestRating: "5",
+        worstRating: "1",
+      },
+    }),
+    ...(reviews.length > 0 && {
+      review: reviews.slice(0, 5).map(r => ({
+        "@type": "Review",
+        name: r.title,
+        reviewBody: r.body,
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: r.rating,
+          bestRating: "5",
+          worstRating: "1",
+        },
+        author: { "@type": "Person", name: r.userName },
+        datePublished: safeISOString(r.createdAt),
+      })),
+    }),
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: base },
+      { "@type": "ListItem", position: 2, name: "Games", item: `${base}/games` },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: game.genre,
+        item: `${base}/games/genre/${String(game.genre).toLowerCase()}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
         name: game.title,
-        applicationCategory: "Game",
-        applicationSubCategory: game.genre,
-        operatingSystem: (game.platforms || []).join(", "),
-        softwareVersion: game.version,
-        description: game.description,
-        image: game.images?.[0] ?? game.coverImage,
-        url: `${base}/games/${game.slug}`,
-        downloadUrl: game.downloadLinks?.[0]?.url,
-        fileSize: game.fileSize,
-        datePublished: safeISOString(game.releaseDate),
-        dateModified: safeISOString(game.updatedAt),
-        author: { "@type": "Organization", name: game.developer ?? "Unknown" },
-        publisher: { "@type": "Organization", name: game.publisher ?? "Unknown" },
-        offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        },
-        ...(game.reviewCount > 0 && {
-        aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: Number(game.averageRating || 0).toFixed(1),
-            reviewCount: game.reviewCount,
-            bestRating: "5",
-            worstRating: "1",
-        },
-        }),
-        ...(reviews.length > 0 && {
-        review: reviews.slice(0, 5).map(r => ({
-            "@type": "Review",
-            name: r.title,
-            reviewBody: r.body,
-            reviewRating: {
-            "@type": "Rating",
-            ratingValue: r.rating,
-            bestRating: "5",
-            worstRating: "1",
-            },
-            author: { "@type": "Person", name: r.userName },
-            datePublished: safeISOString(r.createdAt),
-        })),
-        }),
-    };
+        item: `${base}/games/${game.slug}`,
+      },
+    ],
+  };
 
-    const breadcrumbSchema = {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: base },
-        { "@type": "ListItem", position: 2, name: "Games", item: `${base}/games` },
-        {
-            "@type": "ListItem",
-            position: 3,
-            name: game.genre,
-            item: `${base}/games/genre/${String(game.genre).toLowerCase()}`,
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `What are the minimum system requirements for ${game.title}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `To run ${game.title} you need: OS: ${
+            game.requirements?.minimum?.os ?? "N/A"
+          }, CPU: ${game.requirements?.minimum?.cpu ?? "N/A"}, RAM: ${
+            game.requirements?.minimum?.ram ?? "N/A"
+          }, GPU: ${game.requirements?.minimum?.gpu ?? "N/A"}, Storage: ${
+            game.requirements?.minimum?.storage ?? "N/A"
+          }.`,
         },
-        {
-            "@type": "ListItem",
-            position: 4,
-            name: game.title,
-            item: `${base}/games/${game.slug}`,
+      },
+      {
+        "@type": "Question",
+        name: `How to install ${game.title}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: game.installationGuide?.length
+            ? game.installationGuide.map((s: string, i: number) => `Step ${i + 1}: ${s}`).join(" ")
+            : `Download ${game.title}, extract the archive, and run the installer.`,
         },
-        ],
-    };
-
-    const faqSchema = {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: [
-        {
-            "@type": "Question",
-            name: `What are the minimum system requirements for ${game.title}?`,
-            acceptedAnswer: {
-            "@type": "Answer",
-            text: `To run ${game.title} you need: OS: ${
-                game.requirements?.minimum?.os ?? "N/A"
-            }, CPU: ${game.requirements?.minimum?.cpu ?? "N/A"}, RAM: ${
-                game.requirements?.minimum?.ram ?? "N/A"
-            }, GPU: ${game.requirements?.minimum?.gpu ?? "N/A"}, Storage: ${
-                game.requirements?.minimum?.storage ?? "N/A"
-            }.`,
-            },
+      },
+      {
+        "@type": "Question",
+        name: `Is ${game.title} free to download?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Yes, ${game.title} is available as a free download on Gameslib with no registration required.`,
         },
-        {
-            "@type": "Question",
-            name: `How to install ${game.title}?`,
-            acceptedAnswer: {
-            "@type": "Answer",
-            text: game.installationGuide?.length
-                ? game.installationGuide.map((s: string, i: number) => `Step ${i + 1}: ${s}`).join(" ")
-                : `Download ${game.title}, extract the archive, and run the installer.`,
-            },
-        },
-        {
-            "@type": "Question",
-            name: `Is ${game.title} free to download?`,
-            acceptedAnswer: {
-            "@type": "Answer",
-            text: `Yes, ${game.title} is available as a free download on Gameslib with no registration required.`,
-            },
-        },
-        ],
-    };
-    return [appSchema, breadcrumbSchema, faqSchema];
+      },
+    ],
+  };
+  return [appSchema, breadcrumbSchema, faqSchema];
 }
 
-// Mock data for player statistics, assuming it comes from the `game` object
+// Mock data for player statistics
 const MOCK_REVIEW_STATS = { "5": 1150, "4": 95, "3": 15, "2": 8, "1": 15 };
 
 export default async function GameDetailPage({ params }: { params: { slug: string } }) {
@@ -214,24 +211,29 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
       ))}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-g-text">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-2 text-sm text-g-muted mb-6"
-        >
-          {/* Breadcrumbs as before */}
-          <Link href="/" className="hover:text-g-purple transition-colors">Home</Link>
-          <span>/</span>
-          <Link href="/games" className="hover:text-g-purple transition-colors">Games</Link>
-          <span>/</span>
-          <Link
-            href={`/games/genre/${String(game.genre).toLowerCase()}`}
-            className="hover:text-g-purple transition-colors capitalize"
+        {/* Optional Auth Bar (Top) */}
+        <div className="flex justify-between items-center mb-6">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-2 text-sm text-g-muted"
           >
-            {game.genre}
-          </Link>
-          <span>/</span>
-          <span className="text-g-text truncate max-w-[200px]">{game.title}</span>
-        </nav>
+            <Link href="/" className="hover:text-g-purple transition-colors">Home</Link>
+            <span>/</span>
+            <Link href="/games" className="hover:text-g-purple transition-colors">Games</Link>
+            <span>/</span>
+            <Link
+              href={`/games/genre/${String(game.genre).toLowerCase()}`}
+              className="hover:text-g-purple transition-colors capitalize"
+            >
+              {game.genre}
+            </Link>
+            <span>/</span>
+            <span className="text-g-text truncate max-w-[200px]">{game.title}</span>
+          </nav>
+          
+          {/* Auth Button (Optional - Non-blocking) */}
+          <AuthButton />
+        </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* MAIN CONTENT */}
@@ -240,38 +242,52 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
             itemScope
             itemType="https://schema.org/SoftwareApplication"
           >
-            {/* --- NEW HEADER SECTION --- */}
+            {/* Header Section with Download CTA */}
             <section className="bg-g-card-alpha p-6 rounded-lg">
               <h1 className="text-4xl font-extrabold text-white mb-3" itemProp="name">
                 {game.title}
               </h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
-                {/* THIS IS THE CORRECTED LINE */}
                 <Badge variant="success">Free Download</Badge>
                 <Badge>v{game.version}</Badge>
                 <Badge>Offline</Badge>
                 <div className="flex items-center gap-1 text-yellow-400" itemProp="aggregateRating" itemType="https://schema.org/AggregateRating">
-                    <Star size={20} fill="currentColor" />
-                    <span className="font-bold text-white text-lg" itemProp="ratingValue">{Number(game.averageRating || 0).toFixed(1)}</span>
-                    <span className="text-g-muted text-sm ml-1" itemProp="reviewCount">({game.reviewCount} reviews)</span>
+                  <Star size={20} fill="currentColor" />
+                  <span className="font-bold text-white text-lg" itemProp="ratingValue">{Number(game.averageRating || 0).toFixed(1)}</span>
+                  <span className="text-g-muted text-sm ml-1" itemProp="reviewCount">({game.reviewCount} reviews)</span>
                 </div>
               </div>
               <p className="text-g-muted mb-5 leading-relaxed" itemProp="description">
                 {game.shortDescription}
               </p>
               <div className="flex flex-wrap items-center gap-x-8 gap-y-4 mb-6 text-sm">
-                  <div className="flex items-center gap-2">
-                      <Calendar size={18} className="text-g-purple" />
-                      <span className="text-g-muted">Release Date: <time className="text-white font-medium" itemProp="datePublished">{formatDate(game.releaseDate)}</time></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <HardDrive size={18} className="text-g-purple" />
-                      <span className="text-g-muted">File Size: <span className="text-white font-medium" itemProp="fileSize">{game.fileSize}</span></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <Monitor size={18} className="text-g-purple" />
-                      <span className="text-g-muted">Genre: <span className="text-white font-medium capitalize" itemProp="applicationSubCategory">{game.genre}</span></span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Calendar size={18} className="text-g-purple" />
+                  <span className="text-g-muted">Release Date: <time className="text-white font-medium" itemProp="datePublished">{formatDate(game.releaseDate)}</time></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <HardDrive size={18} className="text-g-purple" />
+                  <span className="text-g-muted">File Size: <span className="text-white font-medium" itemProp="fileSize">{game.fileSize}</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Monitor size={18} className="text-g-purple" />
+                  <span className="text-g-muted">Genre: <span className="text-white font-medium capitalize" itemProp="applicationSubCategory">{game.genre}</span></span>
+                </div>
+              </div>
+              
+              {/* Primary Download CTA */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t border-g-border/30">
+                <Link 
+                  href={`/download/${game.slug}`} 
+                  className="flex items-center justify-center gap-3 bg-gradient-to-r from-g-purple to-g-purple-dark hover:from-g-purple-dark hover:to-g-purple text-white font-bold py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg w-full sm:w-auto"
+                >
+                  <Download size={24} />
+                  Download Now
+                </Link>
+                <div className="text-center sm:text-left">
+                  <p className="text-g-muted text-sm">No registration required</p>
+                  <p className="text-g-muted text-xs">Secure • Fast • Free</p>
+                </div>
               </div>
             </section>
 
@@ -306,11 +322,8 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
             {game.installationGuide?.length > 0 && (
               <InstallGuide steps={game.installationGuide} title={game.title} />
             )}
-    <Link href={`/download/${game.slug}`} className="flex items-center justify-center gap-3 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-6 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs text-lg">
-    <Download size={22} />
-    Download Now
-</Link>
-            {/* --- NEW PLAYER STATISTICS SECTION --- */}
+
+            {/* Player Statistics */}
             <section aria-labelledby="player-stats-heading" className="card p-5">
               <h2 id="player-stats-heading" className="text-lg font-bold text-white mb-4">Player Statistics</h2>
               <div className="space-y-2">
@@ -344,8 +357,7 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
 
           {/* SIDEBAR */}
           <aside className="space-y-6">
-            {/* DownloadBox removed from here */}
-
+            {/* Game Information */}
             <div className="card p-5 space-y-3">
               <h3 className="font-bold text-white">Game Information</h3>
               <dl className="space-y-3 text-sm">
@@ -366,6 +378,23 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
                   </div>
                 ))}
               </dl>
+            </div>
+
+            {/* Quick Download (Sidebar) */}
+            <div className="card p-5 space-y-4">
+              <h3 className="font-bold text-white">Quick Download</h3>
+              <Link 
+                href={`/download/${game.slug}`}
+                className="flex items-center justify-center gap-2 bg-g-purple hover:bg-g-purple-dark text-white font-semibold py-3 px-4 rounded-lg transition-colors w-full"
+              >
+                <Download size={18} />
+                Download {game.title}
+              </Link>
+              <div className="text-xs text-g-muted space-y-1">
+                <p>✓ No ads • No surveys</p>
+                <p>✓ Direct download • High speed</p>
+                <p>✓ Virus scanned • Safe</p>
+              </div>
             </div>
 
             <RelatedGames genre={game.genre} currentSlug={game.slug} />
