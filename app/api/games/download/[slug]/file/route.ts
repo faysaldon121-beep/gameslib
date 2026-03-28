@@ -2,35 +2,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
-import { validateDownloadSession } from '@/lib/downloadSession';
+import { getValidatedResponse } from '@/lib/downloadSession';
 
-export const runtime = 'nodejs'; // Stable for file proxy/streaming
+export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Validate signed cookie
-    const gameId = await validateDownloadSession(request);
-    if (!gameId) {
-      return NextResponse.json({ error: 'Invalid, expired, or used session. Restart download.' }, { status: 401 });
-    }
-
     await connectDB();
-    const game = await Game.findById(gameId).select('title downloadLinks').lean();
-
+    const game = await Game.findOne({ slug: params.slug }).select('_id title downloadLinks').lean();
     if (!game || !game.downloadLinks?.[0]?.url) {
-      return NextResponse.json({ error: 'Download unavailable' }, { status: 404 });
+      return NextResponse.json({ error: 'Game/download unavailable' }, { status: 404 });
     }
 
+    // Validate session & get response w/ used=true cookie
+    const validatedResponse = getValidatedResponse(request, String(game._id));
+    if (validatedResponse.status !== 200) {
+      return validatedResponse;
+    }
+
+    // Proxy file
     const fileResponse = await fetch(game.downloadLinks[0].url);
-
     if (!fileResponse.ok) {
-      return NextResponse.json({ error: 'File temporarily unavailable' }, { status: 503 });
+      return NextResponse.json({ error: 'File unavailable' }, { status: 503 });
     }
 
-    return new NextResponse(fileResponse.body, {
+    const response = new NextResponse(fileResponse.body, {
+      status: 200,
       headers: {
         'Content-Type': fileResponse.headers.get('content-type') || 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}.zip"`,
@@ -38,8 +38,17 @@ export async function GET(
         'X-Content-Type-Options': 'nosniff',
       },
     });
+
+    // Copy validated cookie to final response
+    validatedResponse.headers.forEach((value, key) => {
+      if (key === 'set-cookie') {
+        response.headers.append(key, value);
+      }
+    });
+
+    return response;
   } catch (error) {
-    console.error('Download proxy error:', error);
-    return NextResponse.json({ error: 'Download failed' }, { status: 500 });
+    console.error('Download error:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
