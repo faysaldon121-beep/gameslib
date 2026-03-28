@@ -273,10 +273,10 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
                       <span className="text-g-muted">Genre: <span className="text-white font-medium capitalize" itemProp="applicationSubCategory">{game.genre}</span></span>
                   </div>
               </div>
-              <a href={game.downloadLinks?.[0]?.url || "#"} className="flex items-center justify-center gap-3 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-6 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs text-lg">
-                <Download size={22} />
-                Download Now
-              </a>
+              <Link href={`/download/${game.slug}`} className="flex items-center justify-center gap-3 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-6 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs text-lg">
+    <Download size={22} />
+    Download Now
+</Link>
             </section>
 
             {/** Carousel */}
