@@ -1,99 +1,118 @@
 // app/download/[slug]/page.tsx
-
-"use client"; // This page must be a Client Component
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 
-// This interface defines the shape of the data we expect from our API
-interface GameDownloadData {
+interface GameData {
   title: string;
-  downloadUrl: string;
 }
 
 export default function DownloadPage({ params }: { params: { slug: string } }) {
-  const [gameData, setGameData] = useState<GameDownloadData | null>(null);
+  const [gameData, setGameData] = useState<GameData | null>(null);
   const [countdown, setCountdown] = useState(5);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Fetch the secure download link from our API route
-    fetch(`/api/games/download/${params.slug}`)
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Failed to find the game. (Status: ${res.status})`);
+    // Step 1: Init secure session via API (sets HttpOnly cookie)
+    const initSession = async () => {
+      try {
+        const response = await fetch(`/api/games/download/${params.slug}/start`, {
+          method: 'POST',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to prepare download: ${response.statusText}`);
         }
-        return res.json();
-      })
-      .then((data: GameDownloadData) => {
+
+        const data = await response.json() as GameData & { success: boolean };
         setGameData(data);
-      })
-      .catch((err) => {
-        setError(err.message || "An unknown error occurred.");
-      })
-      .finally(() => {
+        setSessionReady(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to prepare download');
+      } finally {
         setIsLoading(false);
-      });
+      }
+    };
+
+    initSession();
   }, [params.slug]);
 
   useEffect(() => {
-    // Start countdown only when we have game data and the countdown is active
-    if (gameData && countdown > 0) {
+    if (sessionReady && countdown > 0) {
       const timer = setInterval(() => {
-        setCountdown(prev => prev - 1);
+        setCountdown((prev) => prev - 1);
       }, 1000);
-      return () => clearInterval(timer); // Cleanup timer on unmount
+      return () => clearInterval(timer);
     }
-  }, [gameData, countdown]);
+  }, [sessionReady, countdown]);
 
   useEffect(() => {
-    // Trigger the download when countdown reaches 0
-    if (countdown === 0 && gameData?.downloadUrl) {
-      window.location.href = gameData.downloadUrl;
+    // Step 2: After countdown, trigger proxy download
+    if (countdown === 0 && sessionReady) {
+      window.location.href = `/api/games/download/${params.slug}/file`;
     }
-  }, [countdown, gameData]);
+  }, [countdown, sessionReady, params.slug]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-g-background text-white">
-        <Loader2 className="animate-spin h-10 w-10 text-g-purple" />
-        <span className="ml-4 text-xl">Preparing your download...</span>
+      <div className="min-h-screen flex items-center justify-center bg-g-background text-white p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-g-purple mr-4" />
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Preparing Secure Download...</h2>
+          <p className="text-g-muted">Setting up your session (expires in 1 hour).</p>
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !gameData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-g-background text-white text-center px-4">
-        <h1 className="text-3xl font-bold text-red-500 mb-4">Error</h1>
-        <p className="text-g-muted mb-8">{error}</p>
-        <Link href="/" className="bg-g-purple hover:bg-g-purple-dark text-white font-bold py-2 px-4 rounded">
-          Return to Homepage
+      <div className="min-h-screen flex flex-col items-center justify-center bg-g-background text-white p-8 text-center">
+        <h1 className="text-3xl font-bold text-red-400 mb-4">Download Error</h1>
+        <p className="text-g-muted mb-8 max-w-md">{error}</p>
+        <Link 
+          href={`/games/${params.slug}`} 
+          className="bg-g-purple hover:bg-g-purple-dark text-white font-bold py-3 px-8 rounded-lg flex items-center gap-2"
+        >
+          <Download size={20} />
+          Try Again
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-g-background text-white text-center px-4">
-      <h1 className="text-4xl font-bold mb-4">{gameData?.title}</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-g-background text-white p-8 text-center">
+      <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-g-purple to-g-purple-dark bg-clip-text text-transparent">
+        {gameData.title}
+      </h1>
+      
       {countdown > 0 ? (
         <>
-          <p className="text-xl text-g-muted mb-2">Your download will begin in...</p>
-          <div className="text-6xl font-extrabold text-g-purple mb-8">{countdown}</div>
-          <Loader2 className="animate-spin h-8 w-8 text-g-muted" />
+          <p className="text-xl text-g-muted mb-4">Your secure download will begin in...</p>
+          <div className="text-6xl md:text-7xl font-black text-g-purple mb-8 animate-pulse">
+            {countdown}
+          </div>
+          <Loader2 className="h-12 w-12 mx-auto animate-spin text-g-purple mb-4" />
+          <p className="text-sm text-g-muted">Session expires in 1 hour • Single-use only</p>
         </>
       ) : (
         <>
-          <p className="text-xl text-green-400 mb-4">Your download has started!</p>
-          <p className="text-sm text-g-muted">If it didn't start automatically, you can use the direct link below.</p>
+          <p className="text-2xl text-green-400 mb-8 flex items-center gap-2 justify-center">
+            <Download size={32} className="animate-bounce" />
+            Download Started!
+          </p>
+          <p className="text-g-muted mb-8">If it didn't start, click below (session expires soon).</p>
           <a
-            href={gameData?.downloadUrl}
-            className="mt-6 bg-g-purple hover:bg-g-purple-dark text-white font-bold py-3 px-6 rounded-lg transition-colors"
+            href={`/api/games/download/${params.slug}/file`}
+            className="bg-g-purple hover:bg-g-purple-dark text-white font-bold py-4 px-8 rounded-xl text-lg flex items-center gap-3 shadow-lg hover:shadow-xl transition-all"
           >
-            Click here to download manually
+            <Download size={24} />
+            Download Manually
           </a>
         </>
       )}
