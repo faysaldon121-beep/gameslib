@@ -1,22 +1,17 @@
-// lib/downloadSession.ts
+// lib/downloadSession.ts (full replacement)
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { auth } from '@/lib/auth'; // Optional auth
 
 const SECRET = process.env.SESSION_SECRET!;
 const COOKIE_NAME = 'gameslib-download';
 const MAX_AGE_MS = 120 * 120 * 1000; // 1 hour
 const MAX_AGE_SEC = 3600;
-// In generateDownloadSession(gameId: string, userId?: string)
-const payload: DownloadPayload = {
-  gameId,
-  userId: userId || null, // Optional
-  createdAt: Date.now(),
-  used: false,
-};
 
 interface DownloadPayload {
   gameId: string;
+  userId?: string;
   createdAt: number;
   used: boolean;
 }
@@ -28,11 +23,10 @@ function sign(payloadStr: string): string {
 export function parseCookie(cookieHeader: string | null | undefined): DownloadPayload | null {
   if (!cookieHeader) return null;
 
-  // Parse cookie header
   const cookies: Record<string, string> = {};
   cookieHeader.split(';').forEach((cookie) => {
     const [name, value] = cookie.trim().split('=');
-    if (name && value) {
+    if (name && value !== undefined) {
       cookies[name] = decodeURIComponent(value);
     }
   });
@@ -42,13 +36,13 @@ export function parseCookie(cookieHeader: string | null | undefined): DownloadPa
 
   const [payloadStr, signature] = cookieValue.split('.');
   if (!payloadStr || !signature || signature !== sign(payloadStr)) {
-    return null; // Invalid/tampered
+    return null;
   }
 
   try {
     const payload: DownloadPayload = JSON.parse(payloadStr);
     if (Date.now() - payload.createdAt > MAX_AGE_MS || payload.used) {
-      return null; // Expired or used
+      return null;
     }
     return payload;
   } catch {
@@ -56,10 +50,13 @@ export function parseCookie(cookieHeader: string | null | undefined): DownloadPa
   }
 }
 
-// Generate fresh session cookie
 export async function generateDownloadSession(gameId: string) {
+  const session = await auth(); // Optional: Get user if logged in
+  const userId = session?.user?.id;
+
   const payload: DownloadPayload = {
     gameId,
+    ...(userId && { userId }),
     createdAt: Date.now(),
     used: false,
   };
@@ -77,23 +74,22 @@ export async function generateDownloadSession(gameId: string) {
   });
 }
 
-// Validate & return "consumed" response (sets used=true cookie)
 export function getValidatedResponse(
   request: NextRequest,
-  gameId: string
+  expectedGameId: string
 ): NextResponse {
   const payload = parseCookie(request.headers.get('cookie'));
-  if (!payload || payload.gameId !== gameId) {
-    return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+  if (!payload || payload.gameId !== expectedGameId) {
+    return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
   }
 
-  // Mark as used: Create new cookie with used=true
+  // Set used=true cookie
   const usedPayload: DownloadPayload = { ...payload, used: true };
   const usedPayloadStr = JSON.stringify(usedPayload);
   const usedSignature = sign(usedPayloadStr);
   const usedCookieValue = `${usedPayloadStr}.${usedSignature}`;
 
-  const response = NextResponse.next(); // Or your file response
+  const response = NextResponse.next();
   response.cookies.set(COOKIE_NAME, usedCookieValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
