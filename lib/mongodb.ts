@@ -1,22 +1,48 @@
-// lib/mongodb.ts - Add at end (adapt your connectDB):
+// lib/mongodb.ts (full replacement)
+import mongoose from 'mongoose';
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI!;
-const options = {};
-
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === 'development') {
-  // In dev, reconnect each time
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
-  }
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+if (!global.mongoose) {
+  global.mongoose = { conn: null, promise: null };
 }
 
-export default clientPromise; // For Auth.js adapter
+const MONGODB_URI = process.env.MONGODB_URI!;
+
+export async function connectDB() {
+  if (global.mongoose?.conn?.readyState === 1) return;
+  if (!global.mongoose.promise) {
+    global.mongoose.promise = mongoose.connect(MONGODB_URI);
+  }
+  await global.mongoose.promise;
+}
+
+// For Auth.js MongoDBAdapter
+let cached = global.mongo;
+
+if (!cached) {
+  cached = global.mongo = { conn: null, promise: null };
+}
+
+async function clientPromise() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = new MongoClient(MONGODB_URI, opts).connect();
+  }
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
+}
+
+export default clientPromise;
