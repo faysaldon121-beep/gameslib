@@ -1,6 +1,6 @@
-// app/auth/signin/page.tsx
+// app/auth/signin/page.tsx (minor fix: client signIn)
 "use client";
-import { signIn, getProviders } from 'next-auth/react';
+import { signIn, getProviders } from 'next-auth/react';  // ✅ Client-side
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
