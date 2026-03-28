@@ -1,13 +1,22 @@
 // models/User.ts
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-const userSchema = new Schema({
+export interface IUser extends Document {
+  email: string;
+  name?: string;
+  image?: string;
+  password?: string;
+  emailVerified?: Date;
+  downloads?: Schema.Types.ObjectId[];
+}
+
+const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   name: { type: String },
   image: { type: String },
-  password: { type: String }, // Hashed for credentials
+  password: { type: String },
   emailVerified: { type: Date },
-  downloads: [{ type: Schema.Types.ObjectId, ref: 'Game' }], // Optional tracking
+  downloads: [{ type: Schema.Types.ObjectId, ref: 'Game' }],
 });
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+export default mongoose.models.User || mongoose.model<IUser>('User', userSchema);
