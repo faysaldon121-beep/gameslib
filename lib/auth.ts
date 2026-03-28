@@ -6,7 +6,7 @@ import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import bcrypt from "bcryptjs";
 import connectDB from "./mongodb"; // Your connectDB function
 import clientPromise from "./mongodb"; // ClientPromise for Auth.js adapter
-import UserModel from "@/models/User"; // Your MongoDB User model
+import UserModel, { IUser } from "@/models/User"; // Your MongoDB User model, import IUser
 
 // Extend NextAuth's built-in types to avoid client-side type errors
 declare module "next-auth" {
@@ -26,7 +26,7 @@ declare module "next-auth" {
 // Matches Auth.js v5's required authorize function signature EXACTLY
 async function verifyCredentials(
   credentials: Partial<Record<"email" | "password", unknown>>,
-  request: Request // Added the missing request parameter to fix type mismatch
+  request: Request // This parameter is crucial for matching the expected signature
 ) {
   // Validate input types first to resolve unknown type errors
   const email = credentials?.email;
@@ -36,9 +36,16 @@ async function verifyCredentials(
   }
 
   await connectDB();
-  // Explicitly select password (Mongoose often omits sensitive fields by default)
-  const user = await UserModel.findOne({ email }).select("+password").lean();
-  if (!user?.password) throw new Error("No account found with this email");
+  
+  // Explicitly cast the result of lean() to IUser | null
+  // This tells TypeScript that if a user is found, it will conform to IUser,
+  // which guarantees the 'password' property after 'select('+password')'.
+  const user = await UserModel.findOne({ email }).select("+password").lean() as (IUser | null);
+
+  // Check if user exists AND if it has a password field (which it should due to select('+password'))
+  if (!user || !user.password) {
+    throw new Error("No account found with this email or password missing");
+  }
 
   // Verify password hash
   const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -56,7 +63,7 @@ async function verifyCredentials(
 // Core NextAuth config
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: MongoDBAdapter(clientPromise),
-  secret: process.env.AUTH_SECRET,
+  secret: process.env.AUTH_SECRET, // AUTH_SECRET is mandatory for production
   providers: [
     // Google OAuth (only enabled if env vars are set)
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -67,7 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }),
         ]
       : []),
-    // Email/Password credentials
+    // Email/Password credentials provider
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -76,19 +83,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorize: verifyCredentials,
     }),
   ],
-  session: { strategy: "jwt" },
-  pages: { signIn: "/auth/signin" },
-  // Callbacks to attach user ID to JWT and sessions
+  session: { strategy: "jwt" }, // Use JWT for session management
+  pages: { signIn: "/auth/signin" }, // Custom sign-in page
+  // Callbacks to attach user ID to JWT and sessions for client-side access
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) token.id = user.id; // Attach user ID to the JWT
       return token;
     },
     async session({ session, token }) {
-      if (token.id && session.user) session.user.id = token.id as string;
+      if (token.id && session.user) session.user.id = token.id as string; // Attach user ID to the session object
       return session;
     },
   },
-  // Enable debug logging only in development
+  // Enable debug logging only in development mode
   debug: process.env.NODE_ENV === "development",
 });
