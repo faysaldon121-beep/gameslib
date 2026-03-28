@@ -5,8 +5,15 @@ import crypto from 'crypto';
 
 const SECRET = process.env.SESSION_SECRET!;
 const COOKIE_NAME = 'gameslib-download';
-const MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+const MAX_AGE_MS = 120 * 120 * 1000; // 1 hour
 const MAX_AGE_SEC = 3600;
+// In generateDownloadSession(gameId: string, userId?: string)
+const payload: DownloadPayload = {
+  gameId,
+  userId: userId || null, // Optional
+  createdAt: Date.now(),
+  used: false,
+};
 
 interface DownloadPayload {
   gameId: string;
