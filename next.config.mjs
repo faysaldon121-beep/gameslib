@@ -10,6 +10,7 @@ const nextConfig = {
     { protocol: "https", hostname: "placehold.co" },
     { protocol: "https", hostname: "images.igdb.com" },
     { protocol: "https", hostname: "peskgames.com" }, 
+    { protocol: "https", hostname: "ankergames.net" }
   ],
     formats: ["image/avif", "image/webp"],
   },
