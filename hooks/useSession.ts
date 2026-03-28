@@ -2,4 +2,4 @@
 "use client";
 import { useSession } from 'next-auth/react';
 
-export const useUserSession = () => useSession();
+export { useSession };
