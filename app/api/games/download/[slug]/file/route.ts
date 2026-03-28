@@ -33,7 +33,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': fileResponse.headers.get('content-type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}.zip"`,
+        'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-Content-Type-Options': 'nosniff',
       },
