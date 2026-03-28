@@ -6,6 +6,7 @@ import keywordsData from "@/lib/keywords.json";
 import Script from 'next/script';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
 const keywords = keywordsData.map((item: { text: string }) => item.text);
+import { SessionProvider } from '@/lib/auth'; //
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen flex flex-col bg-g-bg text-g-text">
+       <SessionProvider>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
@@ -50,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
           crossOrigin="anonymous"
         />
+         </SessionProvider>
       </body>
     </html>
   );
