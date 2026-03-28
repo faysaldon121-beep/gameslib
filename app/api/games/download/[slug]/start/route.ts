@@ -1,4 +1,4 @@
-// app/api/games/download/[slug]/start/route.ts
+// app/api/games/download/[slug]/start/route.ts (full)
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
