@@ -21,7 +21,7 @@ async function verifyCredentials(credentials: Record<'email' | 'password', strin
   return { id: String(user._id), email: user.email, name: user.name };
 }
 
-export const { handlers, auth, signIn, signOut, SessionProvider } = NextAuth({
+export const { handlers, auth, signIn: serverSignIn, signOut: serverSignOut } = NextAuth({
   adapter: MongoDBAdapter(clientPromise),
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID ? [Google({
