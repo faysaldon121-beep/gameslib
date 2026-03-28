@@ -1,37 +1,22 @@
-import mongoose from "mongoose";
+// lib/mongodb.ts - Add at end (adapt your connectDB):
+import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || "";
+const uri = process.env.MONGODB_URI!;
+const options = {};
 
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI environment variable is not defined");
-}
+let client: MongoClient;
+let clientPromise: Promise<MongoClient>;
 
-interface MongooseCache {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
-}
-
-declare global {
-  // eslint-disable-next-line no-var
-  var mongooseCache: MongooseCache | undefined;
-}
-
-const cache: MongooseCache = global.mongooseCache ?? { conn: null, promise: null };
-if (!global.mongooseCache) global.mongooseCache = cache;
-
-export async function connectDB(): Promise<typeof mongoose> {
-  if (cache.conn) return cache.conn;
-
-  if (!cache.promise) {
-    cache.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-      maxPoolSize: 10,
-    });
+if (process.env.NODE_ENV === 'development') {
+  // In dev, reconnect each time
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(uri, options);
+    global._mongoClientPromise = client.connect();
   }
-
-  cache.conn = await cache.promise;
-  console.log("Connected to mongo")
-  return cache.conn;
+  clientPromise = global._mongoClientPromise;
+} else {
+  client = new MongoClient(uri, options);
+  clientPromise = client.connect();
 }
 
-export default connectDB;
+export default clientPromise; // For Auth.js adapter
