@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { getValidatedResponse } from '@/lib/downloadSession';
-import { extractDownloadLink } from '@/lib/puppeteer-extractor';
+import { extractDownloadLink } from '@/lib/browser-singleton';
 
 export const runtime = 'nodejs';
 
-export async function GET(request, { params }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
     const { slug } = await params;
 
@@ -34,7 +37,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    const fileResponse = await fetch(downloadUrl, { timeout: 120000 });
+    const fileResponse = await fetch(downloadUrl, { 
+      signal: AbortSignal.timeout(120000) 
+    });
 
     if (!fileResponse.ok) {
       return NextResponse.json(
@@ -56,7 +61,7 @@ export async function GET(request, { params }) {
       },
     });
 
-    validatedResponse.headers.forEach((value, key) => {
+    validatedResponse.headers.forEach((value: string, key: string) => {
       if (key.toLowerCase() === 'set-cookie') {
         response.headers.append(key, value);
       }
