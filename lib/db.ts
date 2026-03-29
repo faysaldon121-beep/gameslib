@@ -51,4 +51,5 @@ export const getMongoClient = async () => {
   return mongooseConnection.connection.getClient();
 };
 
-export const clientPromise = getMongoClient();
+ const clientPromise = getMongoClient();
+export default clientPromise;
