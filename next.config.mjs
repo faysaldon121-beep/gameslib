@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["mongoose"],
+      serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+  },
+  outputFileTracingIncludes: {
+    "/api/games/download/[slug]/file": [
+      "./node_modules/@sparticuz/chromium/**",
+    ],
   },
   images: {
     remotePatterns: [
