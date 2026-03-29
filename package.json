@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -22,7 +23,8 @@
     "mongodb": "^6.0.0",
      "next-auth": "^5.0.0-beta.25",
     "tailwind-merge": "^2.4.0",
-    "puppeteer": "^22.10.0"
+     "puppeteer-core": "^23.0.0",
+    "@sparticuz/chromium": "^123.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
