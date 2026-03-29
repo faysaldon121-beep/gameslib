@@ -1,10 +1,38 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 
+let browserInstance: Browser | null = null;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// In-memory cache with expiry (1 hour)
-const downloadCache = new Map<string, { url: string; timestamp: number }>();
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+async function initBrowser(): Promise<Browser> {
+  // Check if browser is still alive
+  if (browserInstance) {
+    try {
+      await browserInstance.version();
+      console.log('♻️  Reusing browser instance');
+      return browserInstance;
+    } catch (err) {
+      console.log('❌ Browser instance dead, relaunching...');
+      try {
+        await browserInstance.close().catch(() => {});
+      } catch {}
+      browserInstance = null;
+    }
+  }
+
+  console.log('🚀 Launching new browser instance');
+  browserInstance = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-popup-blocking',
+      '--disable-features=site-per-process',
+    ],
+  });
+
+  return browserInstance;
+}
 
 async function stealthPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
@@ -46,6 +74,8 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
   try {
     if (gamePage.isClosed()) return null;
 
+    console.log('🖱️ Opening download modal...');
+
     // Open modal
     await safeEval(gamePage, () => {
       const btn =
@@ -68,6 +98,8 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
 
     await sleep(2000);
     if (gamePage.isClosed()) return null;
+
+    console.log('🖱️ Clicking download button...');
 
     // Click download button
     const navPromise = gamePage
@@ -106,6 +138,8 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
     await navPromise;
     if (gamePage.isClosed()) return null;
 
+    console.log('⏳ Waiting for download link...');
+
     // Wait for download link
     let downloadUrl: string | null = null;
 
@@ -113,13 +147,13 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
       if (gamePage.isClosed()) return null;
 
       downloadUrl = await safeEval(gamePage, () => {
-        // Check links
+        // Check direct links
         for (const a of document.querySelectorAll('a[href]')) {
           const h = (a as HTMLAnchorElement).href;
           if (/dlproxy|tunnel\d*\.dl/i.test(h)) return h;
         }
 
-        // Check URL
+        // Check current URL
         if (/dlproxy|tunnel\d*\.dl/i.test(window.location.href)) return window.location.href;
 
         // Check Alpine.js data
@@ -137,7 +171,6 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
             )
               return data.url;
 
-            // Check all values
             for (const val of Object.values(data)) {
               if (typeof val === 'string' && /dlproxy|tunnel/i.test(val)) return val;
             }
@@ -149,6 +182,8 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
           const t = script.textContent || '';
           const m = t.match(/https?:\/\/tunnel\d*\.dlproxy\.[^\s"'`<>\\)]+/i);
           if (m) return m[0].replace(/["'`;].*$/, '');
+          const m2 = t.match(/https?:\/\/[^\s"'`<>\\)]*dlproxy\.[^\s"'`<>\\)]+/i);
+          if (m2) return m2[0].replace(/["'`;].*$/, '');
         }
 
         // Check data attributes
@@ -164,71 +199,91 @@ async function getDownloadLink(browser: Browser, gamePage: Page): Promise<string
         return null;
       });
 
-      if (downloadUrl) break;
+      if (downloadUrl) {
+        console.log(`✅ Found: ${downloadUrl.substring(0, 80)}...`);
+        break;
+      }
       await sleep(1000);
     }
 
-    if (downloadUrl) {
-      return downloadUrl.replace(/["'`;>\s].*$/, '').trim();
-    }
-
-    return null;
+    return downloadUrl ? downloadUrl.replace(/["'`;>\s].*$/, '').trim() : null;
   } catch (err) {
-    console.error('Download link extraction error:', err);
+    console.error('❌ Download link extraction error:', err);
     return null;
   }
 }
 
-export async function extractDownloadLink(gameUrl: string): Promise<string | null> {
-  // Check cache
-  const cached = downloadCache.get(gameUrl);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log('📦 Using cached download link');
-    return cached.url;
-  }
+// ═════════════════════════════════════════════════════════════
+// PUBLIC API
+// ═════════════════════════════════════════════════════════════
 
-  let browser: Browser | null = null;
+export async function extractDownloadLink(slug: string, gameUrl: string): Promise<string | null> {
+  let browser: Browser;
   let page: Page | null = null;
 
   try {
-    console.log('🚀 Launching Puppeteer for:', gameUrl);
-
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
+    // ✅ Reuse browser instance (or launch if dead)
+    browser = await initBrowser();
     page = await stealthPage(browser);
+
+    console.log(`\n📥 Extracting download link for: ${slug}`);
     await page.goto(gameUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    await sleep(8000); // Wait for security verification
+    // Wait for security verification
+    await sleep(8000);
 
     const downloadUrl = await getDownloadLink(browser, page);
 
-    if (downloadUrl) {
-      // Cache it
-      downloadCache.set(gameUrl, { url: downloadUrl, timestamp: Date.now() });
-      console.log('✅ Download link extracted and cached');
-      return downloadUrl;
+    if (!downloadUrl) {
+      throw new Error('Failed to extract download link');
     }
 
-    console.log('⚠️ No download link found');
-    return null;
-  } catch (error) {
-    console.error('❌ Extraction failed:', error);
+    console.log(`✨ Success: ${downloadUrl.substring(0, 100)}...\n`);
+    return downloadUrl;
+  } catch (error: any) {
+    console.error(`\n❌ Error for ${slug}:`, error.message);
+
+    // ✅ Kill browser on error
+    if (browserInstance) {
+      console.log('🔄 Killing browser instance due to error...');
+      try {
+        await browserInstance.close().catch(() => {});
+      } catch {}
+      browserInstance = null;
+    }
+
     return null;
   } finally {
     if (page) await safeClosed(page);
-    if (browser) await browser.close().catch(() => {});
   }
 }
 
-// Clear old cache entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of downloadCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      downloadCache.delete(key);
-    }
+// Manual browser status
+export async function getBrowserStatus(): Promise<{
+  alive: boolean;
+  status: string;
+}> {
+  if (!browserInstance) {
+    return { alive: false, status: 'No instance' };
   }
-}, 60 * 1000); // Every minute
+
+  try {
+    const version = await browserInstance.version();
+    return { alive: true, status: `Running (${version})` };
+  } catch {
+    return { alive: false, status: 'Dead' };
+  }
+}
+
+// Manual restart
+export async function restartBrowser(): Promise<void> {
+  console.log('🔄 Manual browser restart requested...');
+  if (browserInstance) {
+    try {
+      await browserInstance.close().catch(() => {});
+    } catch {}
+    browserInstance = null;
+  }
+  const browser = await initBrowser();
+  console.log('✅ Browser restarted');
+}
