@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { getValidatedResponse } from '@/lib/downloadSession';
-import { extractDownloadLink } from '@/lib/browser-singleton';
+import { extractDownloadLink } from '@/lib/puppeteer-extractor.js';
 
 export const runtime = 'nodejs';
 
