@@ -1,11 +1,16 @@
 import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
+// Explicit type for the cached connection object
+interface CachedConnection {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+  clientPromise: Promise<MongoClient> | null;
+}
+
+// Extend NodeJS global with our custom property
 declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-    clientPromise: Promise<mongoose.mongo.MongoClient> | null;
-  };
+  var mongooseConnection: CachedConnection | undefined;
 }
 
 const MONGODB_URI = process.env.MONGODB_URI!;
@@ -14,14 +19,15 @@ if (!MONGODB_URI) {
   throw new Error('Please define MONGODB_URI in .env.local');
 }
 
-let cached = global.mongoose;
+// Get cached connection or initialize
+let cached: CachedConnection = global.mongooseConnection || {
+  conn: null,
+  promise: null,
+  clientPromise: null,
+};
 
-if (!cached) {
-  cached = global.mongoose = {
-    conn: null,
-    promise: null,
-    clientPromise: null,
-  };
+if (!global.mongooseConnection) {
+  global.mongooseConnection = cached;
 }
 
 export async function connectToDatabase() {
@@ -40,7 +46,7 @@ export async function connectToDatabase() {
   return cached.conn;
 }
 
-export default  async function getMongoClient () {
+export const getMongoClient = async () => {
   const mongooseConnection = await connectToDatabase();
   return mongooseConnection.connection.getClient();
 };
