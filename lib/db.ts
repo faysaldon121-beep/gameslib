@@ -1,7 +1,4 @@
-// lib/db.ts
 import mongoose from 'mongoose';
-
-const MONGODB_URI = process.env.MONGODB_URI!;
 
 declare global {
   var mongoose: {
@@ -11,15 +8,20 @@ declare global {
   };
 }
 
+const MONGODB_URI = process.env.MONGODB_URI!;
+
 if (!MONGODB_URI) {
   throw new Error('Please define MONGODB_URI in .env.local');
 }
 
-// Global cache to preserve connection across hot reloads in development
 let cached = global.mongoose;
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null, clientPromise: null };
+  cached = global.mongoose = {
+    conn: null,
+    promise: null,
+    clientPromise: null,
+  };
 }
 
 export async function connectToDatabase() {
@@ -38,12 +40,9 @@ export async function connectToDatabase() {
   return cached.conn;
 }
 
-// This is what the adapter needs: a Promise<MongoClient>
-export const getMongoClient = async () => {
+export default  async function getMongoClient () {
   const mongooseConnection = await connectToDatabase();
-  return mongooseConnection.connection.getClient(); // returns the native MongoClient
+  return mongooseConnection.connection.getClient();
 };
 
-// Optionally, you can export a promise that resolves to the client directly
-const clientPromise = getMongoClient();
-export default clientPromise;
+export const clientPromise = getMongoClient();
