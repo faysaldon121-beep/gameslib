@@ -29,7 +29,7 @@ export async function GET(
       slug,
       `https://ankergames.net/game/${slug}`
     );
-
+console.log(downloadUrl);
     if (!downloadUrl) {
       return NextResponse.json(
         { error: 'Download link unavailable' },
