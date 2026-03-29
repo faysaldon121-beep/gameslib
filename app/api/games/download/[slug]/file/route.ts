@@ -2,18 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { getValidatedResponse } from '@/lib/downloadSession';
-import { extractDownloadLink } from '@/lib/puppeteer-extractor';
+import { extractDownloadLink } from '@/lib/browser-pool';
 
 export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { params: { slug: string } } }
+  { params }: { params: Promise<{ slug: string }> }  // ✅ Params are now a Promise in Next.js 14
 ) {
   try {
+    // ✅ Await params
+    const { slug } = await params;
+
     await connectDB();
 
-    const game = await Game.findOne({ slug: params.slug }).select('_id title').lean();
+    const game = await Game.findOne({ slug }).select('_id title').lean();
     if (!game) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
@@ -25,8 +28,8 @@ export async function GET(
 
     // ✅ Extract fresh link (reuses browser instance)
     const downloadUrl = await extractDownloadLink(
-      params.slug,
-      `https://ankergames.net/game/${params.slug}`
+      slug,
+      `https://ankergames.net/game/${slug}`
     );
 
     if (!downloadUrl) {
