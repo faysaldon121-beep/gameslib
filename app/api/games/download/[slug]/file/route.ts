@@ -21,7 +21,7 @@ export async function GET(
     if (validatedResponse.status !== 200) {
       return validatedResponse;
     }
-
+fetch(game.downloadLinks[0].url).then(resp=>resp).catch(err=>console.log(err));
     const fileResponse = await fetch(game.downloadLinks[0].url);
     if (!fileResponse.ok) {
       return NextResponse.json({ error: 'File unavailable' }, { status: 503 });
