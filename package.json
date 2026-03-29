@@ -23,8 +23,8 @@
     "mongodb": "^6.0.0",
      "next-auth": "^5.0.0-beta.25",
     "tailwind-merge": "^2.4.0",
-     "chrome-aws-lambda": "^10.1.0",
-    "puppeteer-core": "^23.0.0"
+    "puppeteer-core": "^23.5.0",
+    "@sparticuz/chromium-min": "^141.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
