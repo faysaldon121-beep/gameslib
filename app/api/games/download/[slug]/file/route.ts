@@ -1,8 +1,8 @@
-// app/api/games/download/[slug]/file/route.ts (full)
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { getValidatedResponse } from '@/lib/downloadSession';
+import { extractDownloadLink } from '@/lib/puppeteer-extractor';
 
 export const runtime = 'nodejs';
 
@@ -12,27 +12,61 @@ export async function GET(
 ) {
   try {
     await connectDB();
-    const game = await Game.findOne({ slug: params.slug }).select('_id title downloadLinks').lean();
-    if (!game || !game.downloadLinks?.[0]?.url) {
-      return NextResponse.json({ error: 'Game/download unavailable' }, { status: 404 });
+
+    // Get game
+    const game = await Game.findOne({ slug: params.slug }).select('_id title').lean();
+    if (!game) {
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
+    // Validate download session
     const validatedResponse = getValidatedResponse(request, String(game._id));
     if (validatedResponse.status !== 200) {
       return validatedResponse;
     }
-fetch(game.downloadLinks[0].url).then(resp=>resp).catch(err=>console.log(err));
-    const fileResponse = await fetch(game.downloadLinks[0].url);
-    console.log(fileResponse);
-    if (!fileResponse.ok) {
-      return NextResponse.json({ error: fileResponse }, { status: 503 });
+
+    // Extract download link (will use cache if available)
+    const downloadUrl = await extractDownloadLink(
+      `https://ankergames.net/game/${params.slug}`
+    );
+
+    if (!downloadUrl) {
+      return NextResponse.json(
+        { error: 'Download link unavailable' },
+        { status: 503 }
+      );
     }
 
+    // Fetch file from download URL
+    let fileResponse: Response;
+    try {
+      fileResponse = await fetch(downloadUrl, {
+        timeout: 120000, // 2 minutes
+      });
+    } catch (fetchErr) {
+      console.error('Fetch error:', fetchErr);
+      return NextResponse.json(
+        { error: 'Failed to download file' },
+        { status: 503 }
+      );
+    }
+
+    if (!fileResponse.ok) {
+      return NextResponse.json(
+        { error: `Download server error: ${fileResponse.status}` },
+        { status: 503 }
+      );
+    }
+
+    // Stream response
     const response = new NextResponse(fileResponse.body, {
       status: 200,
       headers: {
-        'Content-Type': fileResponse.headers.get('content-type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${game.title.replace(/[^a-z0-9]/gi, '_')}.zip"`,
+        'Content-Type':
+          fileResponse.headers.get('content-type') || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${game.title
+          .replace(/[^a-z0-9]/gi, '_')
+          .toLowerCase()}.zip"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-Content-Type-Options': 'nosniff',
       },
