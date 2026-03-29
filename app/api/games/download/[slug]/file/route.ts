@@ -8,10 +8,9 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }  // ✅ Params are now a Promise in Next.js 14
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    // ✅ Await params
     const { slug } = await params;
 
     await connectDB();
@@ -26,7 +25,6 @@ export async function GET(
       return validatedResponse;
     }
 
-    // ✅ Extract fresh link (reuses browser instance)
     const downloadUrl = await extractDownloadLink(
       slug,
       `https://ankergames.net/game/${slug}`
@@ -39,36 +37,51 @@ export async function GET(
       );
     }
 
-    // Fetch file
-    const fileResponse = await fetch(downloadUrl, { timeout: 120000 });
+    // Fetch with timeout using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds timeout
 
-    if (!fileResponse.ok) {
-      return NextResponse.json(
-        { error: `Download server error: ${fileResponse.status}` },
-        { status: 503 }
-      );
-    }
+    try {
+      const fileResponse = await fetch(downloadUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-    const response = new NextResponse(fileResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type':
-          fileResponse.headers.get('content-type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${game.title
-          .replace(/[^a-z0-9]/gi, '_')
-          .toLowerCase()}.zip"`,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    });
-
-    validatedResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        response.headers.append(key, value);
+      if (!fileResponse.ok) {
+        return NextResponse.json(
+          { error: `Download server error: ${fileResponse.status}` },
+          { status: 503 }
+        );
       }
-    });
 
-    return response;
+      const response = new NextResponse(fileResponse.body, {
+        status: 200,
+        headers: {
+          'Content-Type':
+            fileResponse.headers.get('content-type') || 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${game.title
+            .replace(/[^a-z0-9]/gi, '_')
+            .toLowerCase()}.zip"`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Content-Type-Options': 'nosniff',
+        },
+      });
+
+      validatedResponse.headers.forEach((value, key) => {
+        if (key.toLowerCase() === 'set-cookie') {
+          response.headers.append(key, value);
+        }
+      });
+
+      return response;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { error: 'Download timed out after 120 seconds' },
+          { status: 504 }
+        );
+      }
+      throw fetchError; // re-throw other fetch errors to be caught by outer catch
+    }
   } catch (error) {
     console.error('Download error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
