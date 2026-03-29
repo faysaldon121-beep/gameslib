@@ -37,4 +37,5 @@ export const getMongoClient = async () => {
 };
 
 // Optionally, you can export a promise that resolves to the client directly
-export default const clientPromise = getMongoClient();
+const clientPromise = getMongoClient();
+export default clientPromise;
