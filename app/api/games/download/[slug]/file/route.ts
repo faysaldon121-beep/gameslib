@@ -2,31 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 import { getValidatedResponse } from '@/lib/downloadSession';
-import { extractDownloadLink } from '@/lib/puppeteer-extractor';
+import { extractDownloadLink } from '@/lib/browser-pool';
 
 export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: { params: { slug: string } } }
 ) {
   try {
     await connectDB();
 
-    // Get game
     const game = await Game.findOne({ slug: params.slug }).select('_id title').lean();
     if (!game) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
-    // Validate download session
     const validatedResponse = getValidatedResponse(request, String(game._id));
     if (validatedResponse.status !== 200) {
       return validatedResponse;
     }
 
-    // Extract download link (will use cache if available)
+    // ✅ Extract fresh link (reuses browser instance)
     const downloadUrl = await extractDownloadLink(
+      params.slug,
       `https://ankergames.net/game/${params.slug}`
     );
 
@@ -37,19 +36,8 @@ export async function GET(
       );
     }
 
-    // Fetch file from download URL
-    let fileResponse: Response;
-    try {
-      fileResponse = await fetch(downloadUrl, {
-        timeout: 120000, // 2 minutes
-      });
-    } catch (fetchErr) {
-      console.error('Fetch error:', fetchErr);
-      return NextResponse.json(
-        { error: 'Failed to download file' },
-        { status: 503 }
-      );
-    }
+    // Fetch file
+    const fileResponse = await fetch(downloadUrl, { timeout: 120000 });
 
     if (!fileResponse.ok) {
       return NextResponse.json(
@@ -58,7 +46,6 @@ export async function GET(
       );
     }
 
-    // Stream response
     const response = new NextResponse(fileResponse.body, {
       status: 200,
       headers: {
@@ -72,7 +59,6 @@ export async function GET(
       },
     });
 
-    // Append validated cookie
     validatedResponse.headers.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') {
         response.headers.append(key, value);
