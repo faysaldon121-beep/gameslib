@@ -3,6 +3,14 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 
+declare global {
+  var mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+    clientPromise: Promise<mongoose.mongo.MongoClient> | null;
+  };
+}
+
 if (!MONGODB_URI) {
   throw new Error('Please define MONGODB_URI in .env.local');
 }
