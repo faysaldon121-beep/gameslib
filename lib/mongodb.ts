@@ -1,43 +1,37 @@
-// lib/mongodb.ts
-import mongoose from 'mongoose';
-import { MongoClient } from 'mongodb';
+import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-if (!MONGODB_URI) throw new Error('MONGODB_URI not set');
+const MONGODB_URI = process.env.MONGODB_URI || "";
 
-// --- Type Declarations for Global Object ---
-// This ensures TypeScript knows about the properties we're adding to the global scope.
+if (!MONGODB_URI) {
+  throw new Error("MONGODB_URI environment variable is not defined");
+}
+
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
 declare global {
-  namespace NodeJS {
-    interface Global {
-      _cachedMongoose: typeof mongoose | null;
-      _cachedClientPromise: Promise<MongoClient> | null;
-    }
+  // eslint-disable-next-line no-var
+  var mongooseCache: MongooseCache | undefined;
+}
+
+const cache: MongooseCache = global.mongooseCache ?? { conn: null, promise: null };
+if (!global.mongooseCache) global.mongooseCache = cache;
+
+export async function connectDB(): Promise<typeof mongoose> {
+  if (cache.conn) return cache.conn;
+
+  if (!cache.promise) {
+    cache.promise = mongoose.connect(MONGODB_URI, {
+      bufferCommands: false,
+      maxPoolSize: 10,
+    });
   }
-}
-// --- End Type Declarations ---
 
-let cachedMongoose: typeof mongoose | null = global._cachedMongoose || null;
-let cachedClientPromise: Promise<MongoClient> | null = global._cachedClientPromise || null;
-
-export async function connectMongoose() {
-  if (cachedMongoose) return cachedMongoose;
-  
-  // Connect to MongoDB using Mongoose
-  const conn = await mongoose.connect(MONGODB_URI);
-  cachedMongoose = conn;
-  // Cache the connection on the global object
-  global._cachedMongoose = cachedMongoose;
-  return cachedMongoose;
+  cache.conn = await cache.promise;
+  console.log("Connected to mongo")
+  return cache.conn;
 }
 
-// Setup for the native MongoDB driver client promise for Auth.js adapter
-if (!cachedClientPromise) {
-  const client = new MongoClient(MONGODB_URI);
-  cachedClientPromise = client.connect();
-  // Cache the client promise on the global object
-  global._cachedClientPromise = cachedClientPromise;
-}
-
-const clientPromise = cachedClientPromise!;
-export default clientPromise;
+export default connectDB;
