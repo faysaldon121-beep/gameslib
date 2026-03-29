@@ -29,7 +29,7 @@ export async function GET(
       slug,
       `https://ankergames.net/game/${slug}`
     );
-console.log(downloadUrl);
+
     if (!downloadUrl) {
       return NextResponse.json(
         { error: 'Download link unavailable' },
@@ -37,37 +37,13 @@ console.log(downloadUrl);
       );
     }
 
-    const fileResponse = await fetch(downloadUrl, { 
-      signal: AbortSignal.timeout(120000) 
+    // Just return the URL to the client
+    return NextResponse.json({ 
+      success: true,
+      downloadUrl,
+      title: game.title 
     });
 
-    if (!fileResponse.ok) {
-      return NextResponse.json(
-        { error: `Download server error: ${fileResponse.status}` },
-        { status: 503 }
-      );
-    }
-
-    const response = new NextResponse(fileResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type':
-          fileResponse.headers.get('content-type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${game.title
-          .replace(/[^a-z0-9]/gi, '_')
-          .toLowerCase()}.zip"`,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    });
-
-    validatedResponse.headers.forEach((value: string, key: string) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        response.headers.append(key, value);
-      }
-    });
-
-    return response;
   } catch (error) {
     console.error('Download error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
