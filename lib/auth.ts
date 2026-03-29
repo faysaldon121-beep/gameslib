@@ -5,7 +5,7 @@ import Google from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import bcrypt from "bcryptjs";
 import connectDB from "./mongodb"; // Your connectDB function
-import clientPromise from "./mongodb"; // ClientPromise for Auth.js adapter
+import clientPromise from "./db"; // ClientPromise for Auth.js adapter
 import UserModel, { IUser } from "@/models/User"; // Your MongoDB User model, import IUser
 
 // Extend NextAuth's built-in types to avoid client-side type errors
