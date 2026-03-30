@@ -1,36 +1,97 @@
+// components/games/GameFilter.tsx
 "use client";
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import { useRouter, useSearchParams } from "next/navigation";
+interface GameFilterProps {
+  genres: string[];
+  platforms: string[];
+}
 
-export default function GameFilter({ genres, platforms }: { genres: string[]; platforms: string[] }) {
-  const searchParams = useSearchParams();
+export default function GameFilter({ genres, platforms }: GameFilterProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const selectedGenre = searchParams.get('genre') || '';
+  const selectedPlatform = searchParams.get('platform') || '';
 
-  const update = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    params.delete("page");
-    router.push(`/games?${params.toString()}`);
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    
+    // Reset page when filtering
+    params.delete('page');
+    
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   return (
-    <div className="card p-5 space-y-5 sticky top-24">
-      <div>
-        <h3 className="font-semibold text-g-text mb-2">Genre</h3>
-        <select className="input" value={searchParams.get("genre") ?? ""} onChange={(e) => update("genre", e.target.value)}>
-          <option value="">All genres</option>
-          {genres.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
-        </select>
+    <div className="space-y-6">
+      {/* Genre Filter */}
+      <div className="bg-g-secondary p-4 rounded-lg">
+        <h3 className="font-semibold mb-3 text-g-text">Genre</h3>
+        <div className="space-y-2">
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="genre"
+              value=""
+              checked={selectedGenre === ''}
+              onChange={(e) => updateFilter('genre', e.target.value)}
+              className="mr-2"
+            />
+            <span className="text-g-text">All Genres</span>
+          </label>
+          {genres.map((genre) => (
+            <label key={genre} className="flex items-center">
+              <input
+                type="radio"
+                name="genre"
+                value={genre}
+                checked={selectedGenre === genre}
+                onChange={(e) => updateFilter('genre', e.target.value)}
+                className="mr-2"
+              />
+              <span className="text-g-text">{genre}</span>
+            </label>
+          ))}
+        </div>
       </div>
-      <div>
-        <h3 className="font-semibold text-g-text mb-2">Platform</h3>
-        <select className="input" value={searchParams.get("platform") ?? ""} onChange={(e) => update("platform", e.target.value)}>
-          <option value="">All platforms</option>
-          {platforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
-        </select>
+
+      {/* Platform Filter */}
+      <div className="bg-g-secondary p-4 rounded-lg">
+        <h3 className="font-semibold mb-3 text-g-text">Platform</h3>
+        <div className="space-y-2">
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="platform"
+              value=""
+              checked={selectedPlatform === ''}
+              onChange={(e) => updateFilter('platform', e.target.value)}
+              className="mr-2"
+            />
+            <span className="text-g-text">All Platforms</span>
+          </label>
+          {platforms.map((platform) => (
+            <label key={platform} className="flex items-center">
+              <input
+                type="radio"
+                name="platform"
+                value={platform}
+                checked={selectedPlatform === platform}
+                onChange={(e) => updateFilter('platform', e.target.value)}
+                className="mr-2"
+              />
+              <span className="text-g-text">{platform}</span>
+            </label>
+          ))}
+        </div>
       </div>
-      <button className="btn-secondary w-full justify-center" onClick={() => router.push("/games")}>Reset filters</button>
     </div>
   );
 }
