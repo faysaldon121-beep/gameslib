@@ -19,34 +19,48 @@ export const metadata: Metadata = {
 
 const PAGE_SIZE = 18;
 
-// Enhanced server-side function that can use both MongoDB and FlexSearch
 async function getGames(searchParams: Record<string, string | string[] | undefined>) {
   await connectDB();
+
   const page = Math.max(1, parseInt(String(searchParams.page ?? "1")));
   const skip = (page - 1) * PAGE_SIZE;
   const filter: Record<string, any> = {};
-  
+
   const genre = typeof searchParams.genre === "string" ? searchParams.genre : undefined;
   const platform = typeof searchParams.platform === "string" ? searchParams.platform : undefined;
   const q = typeof searchParams.q === "string" ? searchParams.q : undefined;
-  
-  // Build MongoDB filter
+  const sortParam = typeof searchParams.sort === "string" ? searchParams.sort : undefined;
+
   if (genre) filter.genre = genre;
-  if (platform) filter.platforms = platform;
+  if (platform) filter.platforms = { $in: [platform] };
   if (q) filter.$text = { $search: q };
 
-  // Try to get data from runtime search manager first
+  let sortOptions: any = { isFeatured: -1, averageRating: -1, createdAt: -1 };
+  switch (sortParam) {
+    case "rating":
+      sortOptions = { averageRating: -1, reviewCount: -1 };
+      break;
+    case "downloads":
+      sortOptions = { downloadCount: -1, averageRating: -1 };
+      break;
+    case "newest":
+      sortOptions = { createdAt: -1 };
+      break;
+    case "title":
+      sortOptions = { title: 1 };
+      break;
+  }
+  if (q) sortOptions = { score: { $meta: "textScore" } };
+
   const indexData = await runtimeSearchManager.getIndexData();
   let useClientSearch = false;
 
   if (indexData && indexData.games.length > 0) {
-    // We have the search index available, signal to use client-side search
     useClientSearch = true;
-    
-    // For SEO and initial render, still get some games from MongoDB
+
     const [games, total] = await Promise.all([
       Game.find(filter)
-        .sort(q ? { score: { $meta: "textScore" } } : { isFeatured: -1, averageRating: -1 })
+        .sort(sortOptions)
         .skip(skip)
         .limit(PAGE_SIZE)
         .select("title slug shortDescription coverImage genre averageRating reviewCount version platforms isFeatured")
@@ -54,55 +68,75 @@ async function getGames(searchParams: Record<string, string | string[] | undefin
       Game.countDocuments(filter),
     ]);
 
-    return { 
-      games, 
-      total, 
-      page, 
+    const [genres, platforms] = await Promise.all([
+      Game.distinct("genre").then(results => results.filter(Boolean).sort()),
+      Game.aggregate([
+        { $unwind: "$platforms" },
+        { $group: { _id: "$platforms" } },
+        { $sort: { _id: 1 } }
+      ]).then(results => results.map(r => r._id).filter(Boolean))
+    ]);
+
+    return {
+      games,
+      total,
+      page,
       totalPages: Math.ceil(total / PAGE_SIZE),
       useClientSearch,
       indexReady: true,
-      allGames: indexData.games, // Pass all games for client-side search
-      searchMetadata: indexData.metadata
+      allGames: indexData.games,
+      searchMetadata: indexData.metadata,
+      genres: genres.length ? genres : [...GENRES],
+      platforms: platforms.length ? platforms : [...PLATFORMS],
     };
   }
 
-  // Fallback to pure MongoDB search
-  const [games, total] = await Promise.all([
+  const [games, total, genres, platforms] = await Promise.all([
     Game.find(filter)
-      .sort(q ? { score: { $meta: "textScore" } } : { isFeatured: -1, averageRating: -1 })
+      .sort(sortOptions)
       .skip(skip)
       .limit(PAGE_SIZE)
       .select("title slug shortDescription coverImage genre averageRating reviewCount version platforms isFeatured")
       .lean(),
     Game.countDocuments(filter),
+    Game.distinct("genre").then(results => results.filter(Boolean).sort()),
+    Game.aggregate([
+      { $unwind: "$platforms" },
+      { $group: { _id: "$platforms" } },
+      { $sort: { _id: 1 } }
+    ]).then(results => results.map(r => r._id).filter(Boolean))
   ]);
 
-  return { 
-    games, 
-    total, 
-    page, 
+  return {
+    games,
+    total,
+    page,
     totalPages: Math.ceil(total / PAGE_SIZE),
     useClientSearch: false,
     indexReady: false,
     allGames: [],
-    searchMetadata: null
+    searchMetadata: null,
+    genres: genres.length ? genres : [...GENRES],
+    platforms: platforms.length ? platforms : [...PLATFORMS],
   };
 }
 
-export default async function GamesPage({ 
-  searchParams 
-}: { 
-  searchParams: Record<string, string | string[] | undefined> 
+export default async function GamesPage({
+  searchParams
+}: {
+  searchParams: Record<string, string | string[] | undefined>
 }) {
-  const { 
-    games, 
-    total, 
-    page, 
-    totalPages, 
-    useClientSearch, 
-    indexReady, 
+  const {
+    games,
+    total,
+    page,
+    totalPages,
+    useClientSearch,
+    indexReady,
     allGames,
-    searchMetadata 
+    searchMetadata,
+    genres,
+    platforms
   } = await getGames(searchParams);
 
   return (
@@ -113,22 +147,25 @@ export default async function GamesPage({
           {total} games available for free download
           {indexReady && (
             <span className="ml-2 text-green-400 text-xs">
-              ⚡ Enhanced search ready
+             Find hunreds of games with ease
             </span>
           )}
         </p>
       </div>
-      
+
       <div className="flex flex-col lg:flex-row gap-8">
         <aside className="lg:w-60 shrink-0">
-          <GameFilter genres={[...GENRES]} platforms={[...PLATFORMS]} />
+          <GameFilter
+            genres={genres.length ? genres : [...GENRES]}
+            platforms={platforms.length ? platforms : [...PLATFORMS]}
+          />
         </aside>
-        
+
         <div className="flex-1 min-w-0">
           <div className="mb-6">
             <SearchBar />
           </div>
-          
+
           <Suspense fallback={
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -137,7 +174,6 @@ export default async function GamesPage({
             </div>
           }>
             {useClientSearch ? (
-              // Use enhanced client-side search
               <ClientSearchEnhancement
                 initialGames={games as any[]}
                 allGames={allGames}
@@ -147,7 +183,6 @@ export default async function GamesPage({
                 indexReady={indexReady}
               />
             ) : (
-              // Fallback to server-side search
               <>
                 {games.length > 0 ? (
                   <>
