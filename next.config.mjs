@@ -4,7 +4,9 @@ const nextConfig = {
   serverExternalPackages: ["@sparticuz/chromium-min", "puppeteer-core"],
   experimental: {
     serverComponentsExternalPackages: ["mongoose","@sparticuz/chromium-min", "puppeteer-core"],
+    optimizePackageImports: ['flexsearch']
   },
+  outputFileTracing: true,
   images: {
     remotePatterns: [
     { protocol: "https", hostname: "res.cloudinary.com" },
@@ -15,6 +17,13 @@ const nextConfig = {
     { protocol: "https", hostname: "ankergames.net" }
   ],
     formats: ["image/avif", "image/webp"],
+  },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
+    return config;
   },
   async headers() {
     return [
