@@ -4,7 +4,56 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
-import { GameData } from '@/lib/clientSearch';
+
+export interface GameData {
+  title: string;
+  slug: string;
+  description: string;
+  shortDescription: string;
+  coverImage: string;
+  genre: string;
+  platforms: string[];
+  version: string;
+  developer: string;
+  publisher: string;
+  releaseDate: string;
+  requirements: {
+    minimum: {
+      os: string;
+      cpu: string;
+      ram: string;
+      gpu: string;
+      storage: string;
+      directx?: string;
+    };
+    recommended: {
+      os: string;
+      cpu: string;
+      ram: string;
+      gpu: string;
+      storage: string;
+      directx?: string;
+    };
+  };
+  downloadLinks: Array<{
+    label: string;
+    url: string;
+    size?: string;
+    host?: string;
+  }>;
+  fileSize: string;
+  isFeatured: boolean;
+  averageRating: number;
+  reviewCount: number;
+  downloadCount: number;
+  tags: string[];
+  changelog: string;
+  createdAt: string;
+  updatedAt: string;
+  // Flattened fields for search
+  systemRequirements: string;
+  downloadInfo: string;
+}
 
 interface IndexCache {
   serializedIndex: any;
@@ -24,10 +73,9 @@ class RuntimeSearchManager {
   private isBuilding = false;
   private buildPromise: Promise<void> | null = null;
   
-  // Configuration
   private readonly CACHE_DIR = path.join(process.cwd(), '.cache', 'search');
   private readonly CACHE_FILE = path.join(this.CACHE_DIR, 'runtime-index.json');
-  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
+  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
   private readonly INDEX_VERSION = '1.0.0';
   private checkTimer: NodeJS.Timeout | null = null;
 
@@ -51,7 +99,6 @@ class RuntimeSearchManager {
     }
   }
 
-  // Start periodic change detection
   private startPeriodicChecks() {
     this.checkTimer = setInterval(async () => {
       try {
@@ -61,7 +108,6 @@ class RuntimeSearchManager {
       }
     }, this.CHECK_INTERVAL);
 
-    // Also check on process exit
     process.on('SIGINT', () => this.cleanup());
     process.on('SIGTERM', () => this.cleanup());
   }
@@ -72,12 +118,10 @@ class RuntimeSearchManager {
     }
   }
 
-  // Initialize the search system
   async initialize(): Promise<void> {
     console.log('🚀 Initializing Runtime Search Manager...');
 
     try {
-      // Try to load from cache first
       const cachedData = await this.loadFromCache();
       
       if (cachedData && await this.validateCache(cachedData)) {
@@ -86,7 +130,6 @@ class RuntimeSearchManager {
         return;
       }
 
-      // Build new index
       await this.buildIndex();
       
     } catch (error) {
@@ -95,10 +138,8 @@ class RuntimeSearchManager {
     }
   }
 
-  // Build the search index
   private async buildIndex(): Promise<void> {
     if (this.isBuilding) {
-      // If already building, wait for it to complete
       if (this.buildPromise) {
         await this.buildPromise;
       }
@@ -123,7 +164,6 @@ class RuntimeSearchManager {
     try {
       await connectDB();
       
-      // Fetch all games with change tracking
       const games = await Game.find({})
         .select({
           title: 1,
@@ -151,14 +191,13 @@ class RuntimeSearchManager {
         })
         .lean();
 
-      // Create optimized FlexSearch index
       const index = new Document<GameData>({
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
         minlength: 2,
         optimize: true,
-        fastupdate: false, // Disable for better memory usage
+        fastupdate: false,
         context: {
           resolution: 3,
           depth: 2,
@@ -226,7 +265,6 @@ class RuntimeSearchManager {
         }
       });
 
-      // Process and index games
       const processedGames: GameData[] = [];
       
       for (const game of games) {
@@ -235,10 +273,8 @@ class RuntimeSearchManager {
         processedGames.push(processedGame);
       }
 
-      // Serialize the index
       const serializedIndex = await index.export();
       
-      // Create cache data
       this.indexCache = {
         serializedIndex,
         gamesData: processedGames,
@@ -251,12 +287,10 @@ class RuntimeSearchManager {
         }
       };
 
-      // Save to cache file
       await this.saveToCache(this.indexCache);
 
       const buildTime = Date.now() - startTime;
       console.log(`✅ Search index built: ${games.length} games in ${buildTime}ms`);
-      console.log(`📦 Memory usage: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB`);
 
     } catch (error) {
       console.error('❌ Failed to build search index:', error);
@@ -264,11 +298,7 @@ class RuntimeSearchManager {
     }
   }
 
-  // Process game data for indexing
-  private processGameData(game: any): GameData & { 
-    systemRequirements: string;
-    downloadInfo: string;
-  } {
+  private processGameData(game: any): GameData {
     const systemRequirements = [
       game.requirements?.minimum?.os,
       game.requirements?.minimum?.cpu,
@@ -295,14 +325,12 @@ class RuntimeSearchManager {
     };
   }
 
-  // Check for data changes
   private async checkForChanges(): Promise<void> {
     if (!this.indexCache || this.isBuilding) return;
 
     try {
       await connectDB();
       
-      // Get latest update timestamps
       const latestUpdates = await Game.aggregate([
         {
           $group: {
@@ -327,7 +355,6 @@ class RuntimeSearchManager {
       const currentData = latestUpdates[0];
       const currentChecksum = Buffer.from(currentData.checksum.join('')).toString('base64');
       
-      // Check if rebuild is needed
       const needsRebuild = 
         currentData.count !== this.indexCache.metadata.totalGames ||
         currentChecksum !== this.indexCache.metadata.dataChecksum;
@@ -335,8 +362,6 @@ class RuntimeSearchManager {
       if (needsRebuild) {
         console.log('🔄 Data changes detected, rebuilding search index...');
         await this.buildIndex();
-      } else {
-        console.log('✅ No changes detected, index is up to date');
       }
 
     } catch (error) {
@@ -344,30 +369,20 @@ class RuntimeSearchManager {
     }
   }
 
-  // Validate cached data
   private async validateCache(cachedData: IndexCache): Promise<boolean> {
     if (cachedData.metadata.version !== this.INDEX_VERSION) {
-      console.log('🔄 Cache version mismatch, rebuilding...');
       return false;
     }
 
     try {
       await connectDB();
       const gameCount = await Game.countDocuments();
-      
-      if (gameCount !== cachedData.metadata.totalGames) {
-        console.log('🔄 Game count changed, rebuilding...');
-        return false;
-      }
-
-      return true;
+      return gameCount === cachedData.metadata.totalGames;
     } catch (error) {
-      console.error('Error validating cache:', error);
       return false;
     }
   }
 
-  // Load from cache file
   private async loadFromCache(): Promise<IndexCache | null> {
     try {
       const data = await fs.readFile(this.CACHE_FILE, 'utf-8');
@@ -375,12 +390,10 @@ class RuntimeSearchManager {
       console.log(`📂 Loaded cached index: ${cachedData.metadata.totalGames} games`);
       return cachedData;
     } catch (error) {
-      console.log('📂 No cached index found');
       return null;
     }
   }
 
-  // Save to cache file
   private async saveToCache(data: IndexCache): Promise<void> {
     try {
       await fs.writeFile(this.CACHE_FILE, JSON.stringify(data, null, 0));
@@ -390,7 +403,6 @@ class RuntimeSearchManager {
     }
   }
 
-  // Generate checksum for change detection
   private generateChecksum(games: any[]): string {
     const data = games
       .map(g => `${g._id}:${g.updatedAt}`)
@@ -399,7 +411,6 @@ class RuntimeSearchManager {
     return Buffer.from(data).toString('base64');
   }
 
-  // Get current index data
   async getIndexData(): Promise<{
     index: any;
     games: GameData[];
@@ -420,13 +431,6 @@ class RuntimeSearchManager {
     };
   }
 
-  // Force rebuild
-  async forceRebuild(): Promise<void> {
-    console.log('🔄 Force rebuilding search index...');
-    await this.buildIndex();
-  }
-
-  // Get status
   getStatus() {
     return {
       isReady: !!this.indexCache,
