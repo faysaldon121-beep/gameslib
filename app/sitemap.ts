@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     return {
-      url: `${BASE}/game/${game.slug}`, // Fixed: matches /game/[slug] route
+      url: `${BASE}/games/${game.slug}`, // Fixed: matches /game/[slug] route
       lastModified,
       changeFrequency: "weekly",
       priority: game.isFeatured ? 0.9 : (game.averageRating || 0) >= 4 ? 0.8 : 0.7,
