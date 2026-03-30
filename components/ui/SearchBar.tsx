@@ -1,91 +1,36 @@
-// components/ui/Pagination.tsx
+// components/ui/SearchBar.tsx
 "use client";
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-}
-
-export default function Pagination({ currentPage, totalPages }: PaginationProps) {
+export default function SearchBar() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [query, setQuery] = useState('');
 
-  const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', page.toString());
-    router.push(`?${params.toString()}`, { scroll: false });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    }
   };
 
-  if (totalPages <= 1) return null;
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    
-    return pages;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
   };
 
   return (
-    <nav className="flex justify-center">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-3 py-2 rounded-md text-sm font-medium text-g-text bg-g-secondary border border-g-border hover:bg-g-border disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Previous
-        </button>
-        
-        {getPageNumbers().map((page, index) => (
-          <div key={index}>
-            {page === '...' ? (
-              <span className="px-3 py-2 text-g-muted">...</span>
-            ) : (
-              <button
-                onClick={() => handlePageChange(page as number)}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentPage === page
-                    ? 'bg-purple-600 text-white'
-                    : 'text-g-text bg-g-secondary border border-g-border hover:bg-g-border'
-                }`}
-              >
-                {page}
-              </button>
-            )}
-          </div>
-        ))}
-        
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-2 rounded-md text-sm font-medium text-g-text bg-g-secondary border border-g-border hover:bg-g-border disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Next
-        </button>
+    <form onSubmit={handleSubmit} className="relative">
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-g-muted" />
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          placeholder="Search games..."
+          className="w-full pl-10 pr-4 py-3 bg-g-secondary border border-g-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-g-text placeholder-g-muted"
+        />
       </div>
-    </nav>
+    </form>
   );
 }
