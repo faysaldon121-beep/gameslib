@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
     console.log('📡 Serving search index...');
     const startTime = Date.now();
 
-    // Get the current index data
     const indexData = await runtimeSearchManager.getIndexData();
     
     if (!indexData) {
@@ -18,7 +17,6 @@ export async function GET(request: NextRequest) {
     }
 
     const responseTime = Date.now() - startTime;
-    console.log(`📡 Index served in ${responseTime}ms`);
 
     return NextResponse.json({
       ...indexData,
@@ -28,7 +26,7 @@ export async function GET(request: NextRequest) {
       }
     }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5min cache
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         'CDN-Cache-Control': 'public, s-maxage=300',
       }
     });
@@ -37,32 +35,6 @@ export async function GET(request: NextRequest) {
     console.error('❌ Failed to serve search index:', error);
     return NextResponse.json(
       { error: 'Failed to load search index' },
-      { status: 500 }
-    );
-  }
-}
-
-// Force rebuild endpoint for admin
-export async function POST(request: NextRequest) {
-  try {
-    const { action } = await request.json();
-    
-    if (action === 'rebuild') {
-      await runtimeSearchManager.forceRebuild();
-      return NextResponse.json({ message: 'Index rebuilt successfully' });
-    }
-    
-    if (action === 'status') {
-      const status = runtimeSearchManager.getStatus();
-      return NextResponse.json(status);
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-
-  } catch (error) {
-    console.error('❌ Admin action failed:', error);
-    return NextResponse.json(
-      { error: 'Action failed' },
       { status: 500 }
     );
   }
