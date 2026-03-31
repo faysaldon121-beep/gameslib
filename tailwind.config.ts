@@ -24,33 +24,38 @@ const config: Config = {
           silver: "#94a3b8",
           bronze: "#b45309",
           text: "#e2e8f0",
-          muted: "#64748b"
-        }
+          muted: "#64748b",
+        },
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-in-out",
         "slide-up": "slideUp 0.3s ease-out",
         "pulse-glow": "pulseGlow 2s infinite",
-        shimmer: "shimmer 1.5s linear infinite"
+        shimmer: "shimmer 1.5s linear infinite",
       },
       keyframes: {
-        fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
         slideUp: {
           "0%": { transform: "translateY(16px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" }
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         pulseGlow: {
           "0%,100%": { boxShadow: "0 0 16px rgba(124,58,237,0.3)" },
-          "50%": { boxShadow: "0 0 36px rgba(124,58,237,0.65)" }
+          "50%": { boxShadow: "0 0 36px rgba(124,58,237,0.65)" },
         },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" }
-        }
-      }
-    }
+          "100%": { backgroundPosition: "200% 0" },
+        },
+      },
+    },
   },
-  plugins: []
+  plugins: [
+    require("@tailwindcss/typography"), // adds prose classes for markdown
+  ],
 };
 
 export default config;
