@@ -180,13 +180,13 @@ export default function Header() {
             {/* Desktop Auth Buttons */}
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <Link 
-                href="/login"
+                href="/auth/login"
                 className="px-3.5 py-1.5 text-sm font-medium text-gray-300 hover:text-white border border-gray-600/50 hover:border-gray-500 rounded-md transition-colors"
               >
                 Log in
               </Link>
               <Link 
-                href="/register"
+                href="/auth/register"
                 className="px-3.5 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-md transition-colors shadow-lg shadow-blue-600/20"
               >
                 Sign up
