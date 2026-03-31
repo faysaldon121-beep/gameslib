@@ -35,8 +35,7 @@ class OptimizedGameSearch {
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-        minlength: 2,
-      
+    
         context: {
           resolution: 3,
           depth: 2,
@@ -62,7 +61,7 @@ class OptimizedGameSearch {
               tokenize: "strict",
             
               resolution: 5,
-              minlength: 3
+        
             },
             {
               field: "genre",
@@ -91,7 +90,7 @@ class OptimizedGameSearch {
             {
               field: "systemRequirements",
               tokenize: "strict",
-              minlength: 3,
+            
               resolution: 5
             }
           ]
@@ -147,8 +146,6 @@ class OptimizedGameSearch {
         preset: "memory",
         tokenize: "reverse", 
         resolution: 7,
-        minlength: 2,
-      
         context: {
           resolution: 3,
           depth: 2,
