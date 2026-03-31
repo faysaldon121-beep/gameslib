@@ -126,7 +126,7 @@ class BlogRuntimeSearchManager {
       title: post.title,
       excerpt: post.excerpt,
       content: post.content,
-      coverImage: post.coverImage,
+      coverImage: post.featuredImage,
       category: post.category,
       tags: post.tags || [],
       publishedAt: post.publishedAt.toISOString(),
