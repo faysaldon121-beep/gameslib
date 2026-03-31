@@ -1,10 +1,10 @@
-// lib/clientSearch d.ts
+// lib/clientSearchEngine.ts
 "use client";
 
 import { Document } from "flexsearch";
 
-interface  dSearchEngine {
-  index: Document | null;
+interface OptimizedSearchEngine {
+  index: Document<any> | null;
   games: Map<string, any>;
   isReady: boolean;
   stats: {
@@ -14,8 +14,8 @@ interface  dSearchEngine {
   };
 }
 
-class  dGameSearch {
-  private engine:  dSearchEngine = {
+class OptimizedGameSearch {
+  private engine: OptimizedSearchEngine = {
     index: null,
     games: new Map(),
     isReady: false,
@@ -27,8 +27,7 @@ class  dGameSearch {
   };
 
   /* ------------------------------------------------------------------ */
-  /*  INITIALISE WITH DATA (runs in the browser when you already have   */
-  /*  the games array in memory – e.g. injected by next-server props)   */
+  /*  INITIALISE WITH DATA (used by your hook)                          */
   /* ------------------------------------------------------------------ */
   async initializeWithData(gamesData: any[]): Promise<void> {
     if (this.engine.isReady) return;
@@ -36,21 +35,18 @@ class  dGameSearch {
     const start = Date.now();
 
     try {
-      console.log("🔍  Initialising client search with pre-loaded data…");
+      console.log("🔍 Initialising client search with pre-loaded data…");
 
-      // -------  CREATE THE FLEXSEARCH DOCUMENT INDEX  ------- //
       const index = new Document({
-        /* index-wide options */
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
+        minlength: 2,
         context: {
           resolution: 3,
           depth: 2,
           bidirectional: true,
         },
-
-        /* document/field options */
         document: {
           id: "slug",
           index: [
@@ -68,6 +64,7 @@ class  dGameSearch {
               field: "description",
               tokenize: "strict",
               resolution: 5,
+              minlength: 3,
             },
             { field: "genre", tokenize: "strict" },
             { field: "developer", tokenize: "forward" },
@@ -77,13 +74,13 @@ class  dGameSearch {
             {
               field: "systemRequirements",
               tokenize: "strict",
+              minlength: 3,
               resolution: 5,
             },
           ],
         },
       });
 
-      // -------  ADD GAMES TO THE INDEX  ------- //
       this.engine.games.clear();
       for (const game of gamesData) {
         await index.add(game);
@@ -95,99 +92,31 @@ class  dGameSearch {
 
       this.engine.stats = {
         totalGames: gamesData.length,
-        indexSize: 0, // not measured for in-memory init
+        indexSize: 0,
         loadTime: Date.now() - start,
       };
 
       console.log(
-        `✅  Client search ready: ${gamesData.length} games indexed in ${
-          this.engine.stats.loadTime
-        } ms`,
+        `✅ Client search ready: ${gamesData.length} games indexed in ${this.engine.stats.loadTime}ms`
       );
     } catch (err) {
-      console.error("❌  Failed to initialise client search:", err);
+      console.error("❌ Failed to initialise client search:", err);
       throw err;
     }
   }
 
   /* ------------------------------------------------------------------ */
-  /*  FALLBACK INITIALISER (downloads a pre-built index from /api)      */
+  /*  SEARCH (used by your hook)                                        */
   /* ------------------------------------------------------------------ */
-  async initialize(): Promise<void> {
-    if (this.engine.isReady) return;
-
-    const start = Date.now();
-
-    try {
-      console.log("⬇️  Loading search index from API…");
-      const res = await fetch("/api/search/index", {
-        next: { revalidate: 3600 },
-      });
-      if (!res.ok) throw new Error(`Failed to load index: ${res.statusText}`);
-
-      const { index: serialized, games } = await res.json();
-
-      const index = new Document({
-        preset: "memory",
-        tokenize: "reverse",
-        resolution: 7,
-  
-          // root-level
-        context: { resolution: 3, depth: 2, bidirectional: true },
-        document: {
-          id: "slug",
-          /* simple form because the index is already built */
-          index: [
-            "title",
-            "shortDescription",
-            "description",
-            "genre",
-            "developer",
-            "publisher",
-            "tags",
-            "platforms",
-            "systemRequirements",
-            "downloadInfo",
-          ],
-        },
-      });
-
-      await index.import(serialized);
-
-      this.engine.games.clear();
-      games.forEach((g: any) => this.engine.games.set(g.slug, g));
-
-      this.engine.index = index;
-      this.engine.isReady = true;
-
-      this.engine.stats = {
-        totalGames: games.length,
-        indexSize: JSON.stringify(serialized).length,
-        loadTime: Date.now() - start,
-      };
-
-      console.log(
-        `✅  Search engine ready: ${games.length} games loaded in ${
-          this.engine.stats.loadTime
-        } ms`,
-      );
-    } catch (err) {
-      console.error("❌  Failed to initialise search engine:", err);
-      throw err;
-    }
-  }
-
-  /* ------------------------------------------------------------------ */
-  /*  SEARCH, HELPERS, ETC.  (unchanged)                                */
-  /* ------------------------------------------------------------------ */
-
   async search(query: string, options: any = {}) {
-    if (!this.engine.isReady) throw new Error("Search engine not initialised");
+    if (!this.engine.isReady) {
+      throw new Error("Search engine not initialised");
+    }
 
     const start = performance.now();
 
     try {
-      // empty query – just apply filters/sorting
+      // Empty query - return filtered/sorted games
       if (!query?.trim()) {
         const results = Array.from(this.engine.games.values())
           .filter((g) => this.applyFilters(g, options))
@@ -232,8 +161,55 @@ class  dGameSearch {
     }
   }
 
-  /* --- helper methods below are unchanged and omitted for brevity --- */
-  /* extractGameIds, applyFilters, compareGames, getStats … */
+  /* ------------------------------------------------------------------ */
+  /*  HELPER METHODS                                                    */
+  /* ------------------------------------------------------------------ */
+  private extractGameIds(raw: any): string[] {
+    const ids = new Set<string>();
+    if (!Array.isArray(raw)) return [];
+
+    for (const result of raw) {
+      if (result.result && Array.isArray(result.result)) {
+        result.result.forEach((item: any) => {
+          const id = typeof item === "string" ? item : item?.id || item?.doc?.slug;
+          if (id) ids.add(id);
+        });
+      }
+    }
+    return Array.from(ids);
+  }
+
+  private applyFilters(game: any, options: any): boolean {
+    if (options.genre && game.genre !== options.genre) return false;
+    if (options.platform && !game.platforms?.includes(options.platform)) return false;
+    if (options.minRating && (game.rating || 0) < options.minRating) return false;
+    return true;
+  }
+
+  private compareGames(a: any, b: any, options: any): number {
+    const sortBy = options.sortBy || "relevance";
+    
+    switch (sortBy) {
+      case "rating":
+        return (b.rating || 0) - (a.rating || 0);
+      case "releaseDate":
+        return new Date(b.releaseDate || 0).getTime() - new Date(a.releaseDate || 0).getTime();
+      case "title":
+        return (a.title || "").localeCompare(b.title || "");
+      default:
+        return 0;
+    }
+  }
+
+  getStats() {
+    return this.engine.stats;
+  }
+
+  isInitialized(): boolean {
+    return this.engine.isReady;
+  }
 }
 
-export const clientSearchEngine =  dGameSearch;
+// Export a single instance
+export const optimizedGameSearch = new OptimizedGameSearch();
+export const clientSearchEngine = optimizedGameSearch;
