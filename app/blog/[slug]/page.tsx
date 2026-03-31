@@ -13,21 +13,61 @@ interface Props {
   params: { slug: string };
 }
 
-async function getBlogPost(slug: string) {
+// Give TypeScript a shape for the lean() result
+type BlogPostDoc = {
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  featuredImage: string;
+  author: {
+    name: string;
+    avatar?: string;
+    bio?: string;
+    social?: {
+      twitter?: string;
+      linkedin?: string;
+      github?: string;
+    };
+  };
+  category: string;
+  tags: string[];
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    focusKeyword?: string;
+    canonicalUrl?: string;
+  };
+  readingTime: number;
+  views: number;
+  isPublished: boolean;
+  isFeatured: boolean;
+  publishedAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
+// Fetch one post + related posts and increment views
+async function getBlogPost(slug: string): Promise<{
+  post: BlogPostDoc;
+  relatedPosts: BlogPostDoc[];
+} | null> {
   try {
     await connectDB();
     
     const post = await BlogPost.findOne({ 
       slug, 
       isPublished: true 
-    }).lean();
+    }).lean<BlogPostDoc | null>();
     
     if (!post) return null;
 
-    // Increment view count
-    await BlogPost.findByIdAndUpdate(post._id, { 
-      $inc: { views: 1 } 
-    });
+    // Increment view count (this is where the error was)
+    if (post._id) {
+      await BlogPost.findByIdAndUpdate(post._id, { 
+        $inc: { views: 1 } 
+      });
+    }
 
     // Get related posts
     const relatedPosts = await BlogPost.find({
@@ -40,11 +80,11 @@ async function getBlogPost(slug: string) {
     })
     .sort({ publishedAt: -1 })
     .limit(3)
-    .lean();
+    .lean<BlogPostDoc[]>();
 
     return {
-      post: JSON.parse(JSON.stringify(post)),
-      relatedPosts: JSON.parse(JSON.stringify(relatedPosts))
+      post,
+      relatedPosts
     };
   } catch (error) {
     console.error('Error fetching blog post:', error);
@@ -71,14 +111,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: seoDescription,
     keywords: post.tags.join(', '),
     authors: [{ name: post.author.name }],
-    publishedTime: post.publishedAt,
-    modifiedTime: post.updatedAt,
     openGraph: {
       title: seoTitle,
       description: seoDescription,
       type: 'article',
-      publishedTime: post.publishedAt,
-      modifiedTime: post.updatedAt,
+      publishedTime: post.publishedAt
+        ? new Date(post.publishedAt).toISOString()
+        : undefined,
+      modifiedTime: post.updatedAt
+        ? new Date(post.updatedAt).toISOString()
+        : undefined,
       authors: [post.author.name],
       tags: post.tags,
       images: [
@@ -111,7 +153,7 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  const { post, relatedPosts } = data;
+  const { post, relatedPosts } = data!;
 
   return (
     <>
@@ -159,7 +201,11 @@ export default async function BlogPostPage({ params }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-5 h-5" />
-                      <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
+                      <span>
+                        {post.publishedAt
+                          ? new Date(post.publishedAt).toLocaleDateString()
+                          : ''}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ClockIcon className="w-5 h-5" />
