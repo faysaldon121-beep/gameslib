@@ -106,13 +106,6 @@ export default function Header() {
             </div>
 
             <Link
-              href="/recent"
-              className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
-            >
-              Recent Updates
-            </Link>
-
-            <Link
               href="/collections"
               className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
             >
@@ -195,7 +188,7 @@ export default function Header() {
 
             {/* Mobile User Icon */}
             <Link 
-              href="/login"
+              href="/auth/login"
               className="sm:hidden p-2 text-gray-400 hover:text-white"
               aria-label="Account"
             >
@@ -255,9 +248,6 @@ export default function Header() {
               )}
             </div>
 
-            <Link href="/recent" className="block px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md">
-              Recent Updates
-            </Link>
             <Link href="/collections" className="block px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md">
               Collections
             </Link>
@@ -274,13 +264,13 @@ export default function Header() {
             {/* Mobile Auth Buttons */}
             <div className="pt-3 mt-3 border-t border-gray-800/50 space-y-2">
               <Link 
-                href="/login"
+                href="/auth/login"
                 className="block w-full text-center px-4 py-2 text-sm font-medium text-white border border-gray-600/50 rounded-md"
               >
                 Log in
               </Link>
               <Link 
-                href="/register"
+                href="/auth/register"
                 className="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md"
               >
                 Sign up
