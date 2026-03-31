@@ -34,7 +34,7 @@ class ClientSearchEngine {
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-        minlength: 2,
+        minlength: 2, // ✅ Global minlength setting
         optimize: true,
         context: {
           resolution: 3,
@@ -57,8 +57,8 @@ class ClientSearchEngine {
             {
               field: "description",
               tokenize: "strict",
-              resolution: 5,
-              minlength: 3
+              resolution: 5
+              // ❌ minlength removed from here
             },
             {
               field: "genre",
@@ -83,8 +83,8 @@ class ClientSearchEngine {
             {
               field: "systemRequirements",
               tokenize: "strict",
-              minlength: 3,
               resolution: 5
+              // ❌ minlength removed from here
             }
           ]
         }
