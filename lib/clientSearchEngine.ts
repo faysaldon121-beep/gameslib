@@ -26,15 +26,16 @@ class ClientSearchEngine {
     if (this.isReady) return;
 
     const startTime = Date.now();
-    
+
     try {
       console.log('🔄 Initializing client search...');
 
+      // Use type assertion to bypass TypeScript's strict checking for minlength and other options
       const index = new FlexDocument<any>({
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-        minlength: 2, // ✅ Global minlength setting
+        minlength: 2,           // ✅ global minlength
         optimize: true,
         context: {
           resolution: 3,
@@ -58,7 +59,6 @@ class ClientSearchEngine {
               field: "description",
               tokenize: "strict",
               resolution: 5
-              // ❌ minlength removed from here
             },
             {
               field: "genre",
@@ -84,11 +84,10 @@ class ClientSearchEngine {
               field: "systemRequirements",
               tokenize: "strict",
               resolution: 5
-              // ❌ minlength removed from here
             }
           ]
         }
-      });
+      } as any);   // <-- type assertion silences the TypeScript errors
 
       this.games.clear();
       for (const game of gamesData) {
@@ -98,7 +97,7 @@ class ClientSearchEngine {
 
       this.index = index;
       this.isReady = true;
-      
+
       const loadTime = Date.now() - startTime;
       console.log(`✅ Client search ready: ${gamesData.length} games in ${loadTime}ms`);
 
@@ -159,7 +158,7 @@ class ClientSearchEngine {
 
   private extractGameIds(searchResults: any): string[] {
     const gameIds = new Set<string>();
-    
+
     if (Array.isArray(searchResults)) {
       searchResults.forEach((fieldResult: any) => {
         if (fieldResult.result) {
@@ -187,19 +186,19 @@ class ClientSearchEngine {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
         return b.averageRating - a.averageRating;
-        
+
       case 'rating':
         return b.averageRating - a.averageRating;
-        
+
       case 'downloads':
         return b.downloadCount - a.downloadCount;
-        
+
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        
+
       case 'title':
         return a.title.localeCompare(b.title);
-        
+
       default:
         return 0;
     }
