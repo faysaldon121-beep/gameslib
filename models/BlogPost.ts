@@ -34,94 +34,121 @@ export interface IBlogPost extends Document {
   createdAt: Date;
 }
 
+// Simple custom slug function – no external libs
+function toSlug(input: string): string {
+  return input
+    .toString()
+    .trim()
+    .toLowerCase()
+    // replace non‑alphanumeric with spaces
+    .replace(/[^a-z0-9]+/g, ' ')
+    // collapse multiple spaces to single hyphen
+    .replace(/\s+/g, '-')
+    // trim hyphens
+    .replace(/^-+|-+$/g, '');
+}
+
 const blogPostSchema = new Schema<IBlogPost>(
   {
     title: {
       type: String,
       required: true,
-      trim: true,
+      trim: true
     },
     slug: {
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
+      lowercase: true
     },
     excerpt: {
       type: String,
       required: true,
-      maxlength: 160,
+      maxlength: 160
     },
     content: {
       type: String,
-      required: true,
+      required: true
     },
     featuredImage: {
       type: String,
-      required: true,
+      required: true
     },
     author: {
       name: {
         type: String,
-        required: true,
+        required: true
       },
       avatar: String,
       bio: String,
       social: {
         twitter: String,
         linkedin: String,
-        github: String,
-      },
+        github: String
+      }
     },
     category: {
       type: String,
       required: true,
-      enum: ['Gaming News', 'Game Reviews', 'Tutorials', 'Industry Updates', 'Tips & Tricks'],
+      enum: ['Gaming News', 'Game Reviews', 'Tutorials', 'Industry Updates', 'Tips & Tricks']
     },
     tags: [
       {
         type: String,
-        trim: true,
-      },
+        trim: true
+      }
     ],
     seo: {
       metaTitle: {
         type: String,
-        maxlength: 60,
+        maxlength: 60
       },
       metaDescription: {
         type: String,
-        maxlength: 160,
+        maxlength: 160
       },
       focusKeyword: String,
-      canonicalUrl: String,
+      canonicalUrl: String
     },
     readingTime: {
       type: Number,
-      default: 0,
+      default: 0
     },
     views: {
       type: Number,
-      default: 0,
+      default: 0
     },
     isPublished: {
       type: Boolean,
-      default: false,
+      default: false
     },
     isFeatured: {
       type: Boolean,
-      default: false,
+      default: false
     },
     publishedAt: Date,
     updatedAt: {
       type: Date,
-      default: Date.now,
-    },
+      default: Date.now
+    }
   },
   {
-    timestamps: true,
+    timestamps: true
   }
 );
+
+// AUTO-GENERATE / NORMALIZE SLUG (no external dependency)
+blogPostSchema.pre('validate', function (next) {
+  const doc = this as IBlogPost;
+
+  if (!doc.slug && doc.title) {
+    doc.slug = toSlug(doc.title);
+  } else if (doc.slug) {
+    doc.slug = toSlug(doc.slug);
+  }
+
+  next();
+});
 
 // Indexes for SEO and performance
 blogPostSchema.index({ slug: 1 });
@@ -154,6 +181,8 @@ blogPostSchema.pre('save', function (next) {
   next();
 });
 
-const BlogPost = (models.BlogPost as mongoose.Model<IBlogPost>) || model<IBlogPost>('BlogPost', blogPostSchema);
+const BlogPost =
+  (models.BlogPost as mongoose.Model<IBlogPost>) ||
+  model<IBlogPost>('BlogPost', blogPostSchema);
 
 export default BlogPost;
