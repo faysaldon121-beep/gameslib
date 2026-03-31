@@ -66,22 +66,22 @@ class OptimizedGameSearch {
             {
               field: "genre",
               tokenize: "strict",
-              optimize: true
+              
             },
             {
               field: "developer",
               tokenize: "forward",
-              optimize: true
+              
             },
             {
               field: "publisher",
               tokenize: "forward",
-              optimize: true
+              
             },
             {
               field: "tags",
               tokenize: "strict",
-              optimize: true
+              
             },
             {
               field: "platforms",
