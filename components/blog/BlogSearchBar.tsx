@@ -1,51 +1,54 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, FormEvent } from 'react';
 
-export interface BlogPostSummary {
-  slug: string;
-  title: string;
-  excerpt: string;
-  coverImage?: string;
-  category?: string;
-  tags?: string[];
-  publishedAt?: string;
-}
+const BlogSearchBar = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-interface BlogSearchBarProps {
-  posts: BlogPostSummary[];
-  onResultsChange?: (results: BlogPostSummary[]) => void;
-}
+  const initialQuery = searchParams.get('q') || '';
+  const [query, setQuery] = useState(initialQuery);
 
-const BlogSearchBar: React.FC<BlogSearchBarProps> = ({ posts, onResultsChange }) => {
-  const [query, setQuery] = useState('');
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return posts;
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
 
-    return posts.filter((post) => {
-      const haystack =
-        `${post.title} ${post.excerpt} ${post.category || ''} ${(post.tags || []).join(' ')}`.toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [posts, query]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page'); // reset pagination on new search
 
-  // Notify parent whenever results change
-  React.useEffect(() => {
-    onResultsChange?.(filtered);
-  }, [filtered, onResultsChange]);
+    if (query.trim()) {
+      params.set('q', query.trim());
+    } else {
+      params.delete('q');
+    }
+
+    const search = params.toString();
+    router.push(`/blog${search ? `?${search}` : ''}`);
+  };
 
   return (
-    <div className="w-full max-w-xl mb-6">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-2xl mx-auto flex items-center bg-white/10 rounded-full p-1 backdrop-blur border border-white/20"
+    >
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search blog posts..."
-        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Search blog posts, reviews, and guides..."
+        className="flex-1 bg-transparent border-none text-white placeholder-purple-200 px-4 py-2 text-sm focus:outline-none"
       />
-    </div>
+      <button
+        type="submit"
+        className="bg-purple-600 hover:bg-purple-500 text-white font-medium px-5 py-2 rounded-full text-sm mr-1 transition-colors"
+      >
+        Search
+      </button>
+    </form>
   );
 };
 
