@@ -1,50 +1,68 @@
-// components/blog/BlogCategories.tsx
 'use client';
 
-import React from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-interface BlogCategoriesProps {
-  categories?: string[];
-  activeCategory?: string | null;
-  onCategoryChange?: (category: string | null) => void;
+interface Category {
+  name: string;
+  count: number;
 }
 
-const BlogCategories: React.FC<BlogCategoriesProps> = ({
-  categories = [],
-  activeCategory = null,
-  onCategoryChange,
-}) => {
-  if (categories.length === 0) {
+interface BlogCategoriesProps {
+  categories: Category[];
+}
+
+const BlogCategories: React.FC<BlogCategoriesProps> = ({ categories }) => {
+  const searchParams = useSearchParams();
+  const activeCategory = searchParams.get('category');
+
+  if (!categories || categories.length === 0) {
     return null;
   }
 
+  const buildHref = (categoryName: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page'); // reset pagination on category change
+
+    if (categoryName) {
+      params.set('category', categoryName);
+    } else {
+      params.delete('category');
+    }
+
+    const qs = params.toString();
+    return `/blog${qs ? `?${qs}` : ''}`;
+  };
+
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
-      <button
-        type="button"
-        onClick={() => onCategoryChange?.(null)}
-        className={`rounded-full px-3 py-1 text-xs border ${
-          activeCategory === null
-            ? 'bg-blue-600 text-white border-blue-600'
-            : 'bg-white text-gray-700 border-gray-300'
-        }`}
-      >
-        All
-      </button>
-      {categories.map((cat) => (
-        <button
-          key={cat}
-          type="button"
-          onClick={() => onCategoryChange?.(cat)}
-          className={`rounded-full px-3 py-1 text-xs border ${
-            activeCategory === cat
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300'
-          }`}
+    <div className="bg-g-secondary p-6 rounded-lg">
+      <h3 className="text-lg font-bold mb-4 text-g-text">Categories</h3>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={buildHref(null)}
+          className={`px-3 py-1 rounded-full text-sm border ${
+            !activeCategory
+              ? 'bg-purple-600 text-white border-purple-600'
+              : 'bg-g-border text-g-text border-g-border hover:bg-purple-600 hover:text-white'
+          } transition-colors`}
         >
-          {cat}
-        </button>
-      ))}
+          All ({categories.reduce((sum, c) => sum + c.count, 0)})
+        </Link>
+
+        {categories.map((cat) => (
+          <Link
+            key={cat.name}
+            href={buildHref(cat.name)}
+            className={`px-3 py-1 rounded-full text-sm border ${
+              activeCategory === cat.name
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-g-border text-g-text border-g-border hover:bg-purple-600 hover:text-white'
+            } transition-colors`}
+          >
+            {cat.name} ({cat.count})
+          </Link>
+        ))}
+      </div>
     </div>
   );
 };
