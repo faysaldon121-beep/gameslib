@@ -1,7 +1,8 @@
 import { remark } from 'remark';
 import html from 'remark-html';
 import remarkGfm from 'remark-gfm';
-import remarkPrism from 'remark-prism';
+import remarkRehype from 'remark-rehype';
+import rehypePrism from 'rehype-prism-plus';
 import matter from 'gray-matter';
 import readingTime from 'reading-time';
 
@@ -40,24 +41,16 @@ export interface ProcessedBlogPost {
 
 export async function processMarkdown(markdownContent: string, slug: string): Promise<ProcessedBlogPost> {
   const { data: frontmatter, content } = matter(markdownContent);
-  
-  // Process markdown to HTML
+
+  // Process markdown to HTML with syntax highlighting
   const processedContent = await remark()
     .use(remarkGfm) // GitHub Flavored Markdown
-    .use(remarkPrism, {
-      plugins: [
-        'autolinker',
-        'command-line',
-        'data-uri-highlight',
-        'diff-highlight',
-        'inline-color',
-        'keep-markup',
-        'line-numbers',
-        'show-invisibles',
-        'treeview'
-      ]
+    .use(remarkRehype) // Convert markdown to HTML
+    .use(rehypePrism, {
+      ignoreMissing: true,
+      showLineNumbers: true
     })
-    .use(html, { sanitize: false })
+    .use(html)
     .process(content);
 
   const htmlContent = processedContent.toString();
@@ -83,7 +76,7 @@ export function generateSlug(title: string): string {
 
 export function extractExcerpt(content: string, length: number = 160): string {
   const plainText = content.replace(/[#*`]/g, '').replace(/\n/g, ' ');
-  return plainText.length > length 
+  return plainText.length > length
     ? plainText.substring(0, length).trim() + '...'
     : plainText;
 }
