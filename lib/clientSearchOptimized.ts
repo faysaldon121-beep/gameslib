@@ -36,7 +36,7 @@ class OptimizedGameSearch {
         tokenize: "reverse",
         resolution: 7,
         minlength: 2,
-        optimize: true,
+      
         context: {
           resolution: 3,
           depth: 2,
@@ -48,19 +48,19 @@ class OptimizedGameSearch {
             {
               field: "title",
               tokenize: "forward",
-              optimize: true,
+            
               resolution: 9
             },
             {
               field: "shortDescription",
               tokenize: "forward",
-              optimize: true,
+            
               resolution: 7
             },
             {
               field: "description",
               tokenize: "strict",
-              optimize: true,
+            
               resolution: 5,
               minlength: 3
             },
@@ -148,7 +148,7 @@ class OptimizedGameSearch {
         tokenize: "reverse", 
         resolution: 7,
         minlength: 2,
-        optimize: true,
+      
         context: {
           resolution: 3,
           depth: 2,
