@@ -1,9 +1,10 @@
+// app/blog/[slug]/page.tsx
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import connectDB from '@/lib/mongodb';
-import BlogPost from '@/models/BlogPost';
+import BlogPost, { IBlogPost } from '@/models/BlogPost';
 import ShareButtons from '@/components/blog/ShareButtons';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogStructuredData from '@/components/blog/BlogStructuredData';
@@ -13,41 +14,11 @@ interface Props {
   params: { slug: string };
 }
 
-// Give TypeScript a shape for the lean() result
-type BlogPostDoc = {
+// Shape for lean documents (plain objects, not full Mongoose docs)
+type BlogPostDoc = Omit<IBlogPost, keyof Document> & {
   _id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  featuredImage: string;
-  author: {
-    name: string;
-    avatar?: string;
-    bio?: string;
-    social?: {
-      twitter?: string;
-      linkedin?: string;
-      github?: string;
-    };
-  };
-  category: string;
-  tags: string[];
-  seo?: {
-    metaTitle?: string;
-    metaDescription?: string;
-    focusKeyword?: string;
-    canonicalUrl?: string;
-  };
-  readingTime: number;
-  views: number;
-  isPublished: boolean;
-  isFeatured: boolean;
-  publishedAt?: string | Date;
-  updatedAt?: string | Date;
 };
 
-// Fetch one post + related posts and increment views
 async function getBlogPost(slug: string): Promise<{
   post: BlogPostDoc;
   relatedPosts: BlogPostDoc[];
@@ -62,7 +33,7 @@ async function getBlogPost(slug: string): Promise<{
     
     if (!post) return null;
 
-    // Increment view count (this is where the error was)
+    // Increment view count safely
     if (post._id) {
       await BlogPost.findByIdAndUpdate(post._id, { 
         $inc: { views: 1 } 
@@ -131,7 +102,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           alt: post.title
         }
       ],
-      url: `https://yourdomain.com/blog/${post.slug}`
+      url: `${process.env.NEXT_PUBLIC_SITE_URL}/blog/${post.slug}`
     },
     twitter: {
       card: 'summary_large_image',
