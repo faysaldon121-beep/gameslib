@@ -6,7 +6,6 @@ import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 
 export interface GameData {
-  // Added to satisfy FlexSearch's strict DocumentData type constraint
   [key: string]: any;
   title: string;
   slug: string;
@@ -57,7 +56,7 @@ export interface GameData {
 }
 
 interface IndexCache {
-  serializedIndex: any;
+  serializedIndex: Record<string, any>;
   gamesData: GameData[];
   metadata: {
     totalGames: number;
@@ -73,10 +72,10 @@ class RuntimeSearchManager {
   private indexCache: IndexCache | null = null;
   private isBuilding = false;
   private buildPromise: Promise<void> | null = null;
-  
+
   private readonly CACHE_DIR = path.join(process.cwd(), '.cache', 'search');
   private readonly CACHE_FILE = path.join(this.CACHE_DIR, 'runtime-index.json');
-  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  private readonly CHECK_INTERVAL = 5 * 60 * 1000;
   private readonly INDEX_VERSION = '1.0.0';
   private checkTimer: NodeJS.Timeout | null = null;
 
@@ -124,7 +123,7 @@ class RuntimeSearchManager {
 
     try {
       const cachedData = await this.loadFromCache();
-      
+
       if (cachedData && await this.validateCache(cachedData)) {
         console.log('✅ Using cached search index');
         this.indexCache = cachedData;
@@ -132,7 +131,6 @@ class RuntimeSearchManager {
       }
 
       await this.buildIndex();
-      
     } catch (error) {
       console.error('❌ Failed to initialize search manager:', error);
       throw error;
@@ -149,7 +147,7 @@ class RuntimeSearchManager {
 
     this.isBuilding = true;
     this.buildPromise = this._buildIndexInternal();
-    
+
     try {
       await this.buildPromise;
     } finally {
@@ -164,7 +162,7 @@ class RuntimeSearchManager {
 
     try {
       await connectDB();
-      
+
       const games = await Game.find({})
         .select({
           title: 1,
@@ -192,12 +190,11 @@ class RuntimeSearchManager {
         })
         .lean();
 
-      // Cleaned up configuration: removed all optimize and minlength from fields
       const index = new Document<GameData>({
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-     //   minlength: 2,
+        minlength: 2,
         context: {
           resolution: 3,
           depth: 2,
@@ -256,25 +253,19 @@ class RuntimeSearchManager {
       });
 
       const processedGames: GameData[] = [];
-      
+
       for (const game of games) {
         const processedGame = this.processGameData(game);
         await index.add(processedGame);
         processedGames.push(processedGame);
       }
 
-            // 1. Create an empty object to hold the pieces
+      // Export the index using callback
       const serializedIndex: Record<string, any> = {};
-      
-      // 2. FlexSearch hands us each piece one by one via this callback
       await index.export((key: string, data: any) => {
         serializedIndex[key] = data;
       });
-      
-      this.indexCache = {
-        serializedIndex,
-        gamesData: processedGames,
-      
+
       this.indexCache = {
         serializedIndex,
         gamesData: processedGames,
@@ -291,7 +282,6 @@ class RuntimeSearchManager {
 
       const buildTime = Date.now() - startTime;
       console.log(`✅ Search index built: ${games.length} games in ${buildTime}ms`);
-
     } catch (error) {
       console.error('❌ Failed to build search index:', error);
       throw error;
@@ -314,7 +304,7 @@ class RuntimeSearchManager {
       game.requirements?.recommended?.directx
     ].filter(Boolean).join(' ').toLowerCase();
 
-    const downloadInfo = game.downloadLinks?.map((link: any) => 
+    const downloadInfo = game.downloadLinks?.map((link: any) =>
       `${link.label} ${link.host || ''} ${link.size || ''}`
     ).join(' ').toLowerCase() || '';
 
@@ -330,20 +320,20 @@ class RuntimeSearchManager {
 
     try {
       await connectDB();
-      
+
       const latestUpdates = await Game.aggregate([
         {
           $group: {
             _id: null,
             count: { $sum: 1 },
             lastUpdated: { $max: "$updatedAt" },
-            checksum: { 
-              $push: { 
+            checksum: {
+              $push: {
                 $concat: [
-                  { $toString: "$_id" }, 
-                  ":", 
+                  { $toString: "$_id" },
+                  ":",
                   { $toString: "$updatedAt" }
-                ] 
+                ]
               }
             }
           }
@@ -354,8 +344,8 @@ class RuntimeSearchManager {
 
       const currentData = latestUpdates[0];
       const currentChecksum = Buffer.from(currentData.checksum.join('')).toString('base64');
-      
-      const needsRebuild = 
+
+      const needsRebuild =
         currentData.count !== this.indexCache.metadata.totalGames ||
         currentChecksum !== this.indexCache.metadata.dataChecksum;
 
@@ -363,7 +353,6 @@ class RuntimeSearchManager {
         console.log('🔄 Data changes detected, rebuilding search index...');
         await this.buildIndex();
       }
-
     } catch (error) {
       console.error('Error checking for changes:', error);
     }
@@ -396,7 +385,7 @@ class RuntimeSearchManager {
 
   private async saveToCache(data: IndexCache): Promise<void> {
     try {
-      await fs.writeFile(this.CACHE_FILE, JSON.stringify(data, null, 0));
+      await fs.writeFile(this.CACHE_FILE, JSON.stringify(data, null, 2));
       console.log('💾 Search index cached to disk');
     } catch (error) {
       console.error('Failed to save cache:', error);
@@ -412,7 +401,7 @@ class RuntimeSearchManager {
   }
 
   async getIndexData(): Promise<{
-    index: any;
+    index: Record<string, any>;
     games: GameData[];
     metadata: any;
   } | null> {
