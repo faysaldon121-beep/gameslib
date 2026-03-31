@@ -34,6 +34,7 @@ export const metadata: Metadata = {
     }
   }
 };
+
 type BlogPostSummary = {
   _id: string;
   title: string;
@@ -42,6 +43,7 @@ type BlogPostSummary = {
   featuredImage: string;
   category: string;
   readingTime: number;
+  views: number; // Added views
   publishedAt?: Date | string;
   author: {
     name: string;
@@ -49,6 +51,7 @@ type BlogPostSummary = {
   };
   tags: string[];
 };
+
 interface SearchParams {
   category?: string;
   tag?: string;
@@ -65,6 +68,7 @@ async function getBlogData(searchParams: SearchParams) {
     const page = parseInt(searchParams.page || '1');
     const skip = (page - 1) * POSTS_PER_PAGE;
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { isPublished: true };
     
     if (searchParams.category) {
@@ -84,7 +88,7 @@ async function getBlogData(searchParams: SearchParams) {
         .sort({ isFeatured: -1, publishedAt: -1 })
         .skip(skip)
         .limit(POSTS_PER_PAGE)
-        .lean(),
+        .lean<BlogPostSummary[]>(),
       
       BlogPost.countDocuments(query),
       
@@ -104,23 +108,25 @@ async function getBlogData(searchParams: SearchParams) {
       
       BlogPost.findOne({ isPublished: true, isFeatured: true })
         .sort({ publishedAt: -1 })
-        .lean()
+        .lean<BlogPostSummary | null>()
     ]);
     
     return {
-      posts: JSON.parse(JSON.stringify(posts)),
-      featuredPost: featuredPost ? JSON.parse(JSON.stringify(featuredPost)) : null,
+      // Lean documents can be cleanly passed to Client Components, 
+      // but wrapping in JSON parse/stringify guarantees no raw MongoDB objects slip through
+      posts: JSON.parse(JSON.stringify(posts || [])) as BlogPostSummary[],
+      featuredPost: featuredPost ? (JSON.parse(JSON.stringify(featuredPost)) as BlogPostSummary) : null,
       totalPosts,
       currentPage: page,
       totalPages: Math.ceil(totalPosts / POSTS_PER_PAGE),
-      categories: categories.map(cat => ({ name: cat._id, count: cat.count })),
-      popularTags: popularTags.map(tag => ({ name: tag._id, count: tag.count }))
+      categories: categories.map(cat => ({ name: String(cat._id), count: Number(cat.count) })),
+      popularTags: popularTags.map(tag => ({ name: String(tag._id), count: Number(tag.count) }))
     };
     
   } catch (error) {
     console.error('Error fetching blog data:', error);
     return {
-      posts: [],
+      posts: [] as BlogPostSummary[],
       featuredPost: null,
       totalPosts: 0,
       currentPage: 1,
@@ -187,7 +193,8 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
                   <div className="flex items-center gap-4 text-sm text-g-muted">
                     <div className="flex items-center gap-1">
                       <CalendarDaysIcon className="w-4 h-4" />
-                      {new Date(featuredPost.publishedAt).toLocaleDateString()}
+                      {/* Fixed: Provide fallback date to prevent undefined error */}
+                      {new Date(featuredPost.publishedAt || Date.now()).toLocaleDateString()}
                     </div>
                     <div className="flex items-center gap-1">
                       <ClockIcon className="w-4 h-4" />
@@ -195,7 +202,7 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
                     </div>
                     <div className="flex items-center gap-1">
                       <EyeIcon className="w-4 h-4" />
-                      {featuredPost.views} views
+                      {featuredPost.views || 0} views
                     </div>
                   </div>
                 </div>
@@ -267,7 +274,8 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
                             <div className="flex items-center gap-4 text-sm text-g-muted">
                               <div className="flex items-center gap-1">
                                 <CalendarDaysIcon className="w-4 h-4" />
-                                {new Date(post.publishedAt).toLocaleDateString()}
+                                {/* Fixed: Provide fallback date to prevent undefined error */}
+                                {new Date(post.publishedAt || Date.now()).toLocaleDateString()}
                               </div>
                               <div className="flex items-center gap-1">
                                 <ClockIcon className="w-4 h-4" />
@@ -275,7 +283,7 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
                               </div>
                               <div className="flex items-center gap-1">
                                 <EyeIcon className="w-4 h-4" />
-                                {post.views} views
+                                {post.views || 0} views
                               </div>
                             </div>
                             
