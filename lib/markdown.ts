@@ -47,7 +47,7 @@ export async function processMarkdown(markdownContent: string, slug: string): Pr
   const processedContent = await remark()
     .use(remarkGfm) // GitHub Flavored Markdown (tables, task lists, etc.)
     .use(remarkRehype, { allowDangerousHtml: true }) // Convert Markdown AST to HTML AST
-    .use(rehypeHighlight, { ignoreMissing: true }) // Add syntax highlighting to <pre><code> blocks
+    .use(rehypeHighlight) // Add syntax highlighting to <pre><code> blocks
     .use(rehypeStringify, { allowDangerousHtml: true }) // Convert HTML AST to string
     .process(content);
 
