@@ -70,7 +70,6 @@ class OptimizedGameSearch {
               field: "description",
               tokenize: "strict",
               resolution: 5,
-              minlength: 3,
             },
             { field: "genre", tokenize: "strict" },
             { field: "developer", tokenize: "forward" },
