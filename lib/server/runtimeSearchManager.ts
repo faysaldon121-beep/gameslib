@@ -194,6 +194,7 @@ class RuntimeSearchManager {
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
+        minlength: 2,
         context: {
           resolution: 3,
           depth: 2,
@@ -399,46 +400,25 @@ class RuntimeSearchManager {
     return Buffer.from(data).toString('base64');
   }
 
- async getIndexData(): Promise<{
-  indexChunks: Record<string, any>[];
-  games: GameData[];
-  metadata: any;
-} | null> {
-  if (!this.indexCache) {
-    await this.initialize();
-  }
-
-  if (!this.indexCache) {
-    return null;
-  }
-
-  // Split the index into chunks of ~5MB each
-  const indexChunks: Record<string, any>[] = [];
-  const chunkSize = 5 * 1024 * 1024; // ~5MB
-  let currentChunk: Record<string, any> = {};
-  let currentSize = 0;
-
-  for (const [key, data] of Object.entries(this.indexCache.serializedIndex)) {
-    const dataSize = JSON.stringify(data).length;
-    if (currentSize + dataSize > chunkSize && Object.keys(currentChunk).length > 0) {
-      indexChunks.push(currentChunk);
-      currentChunk = {};
-      currentSize = 0;
+  async getIndexData(): Promise<{
+    index: Record<string, any>;
+    games: GameData[];
+    metadata: any;
+  } | null> {
+    if (!this.indexCache) {
+      await this.initialize();
     }
-    currentChunk[key] = data;
-    currentSize += dataSize;
-  }
 
-  if (Object.keys(currentChunk).length > 0) {
-    indexChunks.push(currentChunk);
-  }
+    if (!this.indexCache) {
+      return null;
+    }
 
-  return {
-    indexChunks,
-    games: this.indexCache.gamesData,
-    metadata: this.indexCache.metadata
-  };
-}
+    return {
+      index: this.indexCache.serializedIndex,
+      games: this.indexCache.gamesData,
+      metadata: this.indexCache.metadata
+    };
+  }
 
   getStatus() {
     return {
