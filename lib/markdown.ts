@@ -1,8 +1,9 @@
+// lib/markdown.ts
 import { remark } from 'remark';
-import html from 'remark-html';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
-import rehypePrism from 'rehype-prism-plus';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeStringify from 'rehype-stringify';
 import matter from 'gray-matter';
 import readingTime from 'reading-time';
 
@@ -41,16 +42,13 @@ export interface ProcessedBlogPost {
 
 export async function processMarkdown(markdownContent: string, slug: string): Promise<ProcessedBlogPost> {
   const { data: frontmatter, content } = matter(markdownContent);
-
-  // Process markdown to HTML with syntax highlighting
+  
+  // Process markdown to HTML with modern remark/rehype ecosystem
   const processedContent = await remark()
-    .use(remarkGfm) // GitHub Flavored Markdown
-    .use(remarkRehype) // Convert markdown to HTML
-    .use(rehypePrism, {
-      ignoreMissing: true,
-      showLineNumbers: true
-    })
-    .use(html)
+    .use(remarkGfm) // GitHub Flavored Markdown (tables, task lists, etc.)
+    .use(remarkRehype, { allowDangerousHtml: true }) // Convert Markdown AST to HTML AST
+    .use(rehypeHighlight, { ignoreMissing: true }) // Add syntax highlighting to <pre><code> blocks
+    .use(rehypeStringify, { allowDangerousHtml: true }) // Convert HTML AST to string
     .process(content);
 
   const htmlContent = processedContent.toString();
@@ -65,6 +63,7 @@ export async function processMarkdown(markdownContent: string, slug: string): Pr
   };
 }
 
+// Generate slug natively (no external dependencies)
 export function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -74,9 +73,10 @@ export function generateSlug(title: string): string {
     .trim();
 }
 
+// Extract a plain text excerpt natively
 export function extractExcerpt(content: string, length: number = 160): string {
   const plainText = content.replace(/[#*`]/g, '').replace(/\n/g, ' ');
-  return plainText.length > length
+  return plainText.length > length 
     ? plainText.substring(0, length).trim() + '...'
     : plainText;
 }
