@@ -240,4 +240,4 @@ class OptimizedGameSearch {
   /* extractGameIds, applyFilters, compareGames, getStats … */
 }
 
-export const optimizedGameSearch = new OptimizedGameSearch();
+export const clientSearchEngine = optimizedGameSearch;
