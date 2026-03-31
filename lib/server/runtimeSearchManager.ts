@@ -6,6 +6,8 @@ import connectDB from '@/lib/mongodb';
 import Game from '@/models/Game';
 
 export interface GameData {
+  // ADDED INDEX SIGNATURE to satisfy FlexSearch's DocumentData constraint
+  [key: string]: any;
   title: string;
   slug: string;
   description: string;
@@ -191,13 +193,12 @@ class RuntimeSearchManager {
         })
         .lean();
 
+      // ALL optimize: true REMOVED to satisfy DocumentOptions typings
       const index = new Document<GameData>({
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
         minlength: 2,
-        optimize: true,
-        fastupdate: false,
         context: {
           resolution: 3,
           depth: 2,
@@ -209,41 +210,34 @@ class RuntimeSearchManager {
             {
               field: "title",
               tokenize: "forward",
-              optimize: true,
               resolution: 9
             },
             {
               field: "shortDescription",
               tokenize: "forward",
-              optimize: true,
               resolution: 7
             },
             {
               field: "description",
               tokenize: "strict",
-              optimize: true,
               resolution: 5,
               minlength: 3
             },
             {
               field: "genre",
-              tokenize: "strict",
-              optimize: true
+              tokenize: "strict"
             },
             {
               field: "developer",
-              tokenize: "forward",
-              optimize: true
+              tokenize: "forward"
             },
             {
               field: "publisher",
-              tokenize: "forward",
-              optimize: true
+              tokenize: "forward"
             },
             {
               field: "tags",
-              tokenize: "strict",
-              optimize: true
+              tokenize: "strict"
             },
             {
               field: "platforms",
