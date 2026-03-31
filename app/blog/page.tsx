@@ -51,7 +51,6 @@ async function getBlogData(searchParams: SearchParams) {
     const page = parseInt(searchParams.page || '1');
     const skip = (page - 1) * POSTS_PER_PAGE;
     
-    // Build query
     const query: any = { isPublished: true };
     
     if (searchParams.category) {
@@ -131,7 +130,6 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
 
   return (
     <div className="min-h-screen bg-g-bg">
-      {/* Hero Section */}
       <section className="bg-gradient-to-r from-purple-900 to-blue-900 py-16">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
@@ -145,7 +143,6 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
       </section>
 
       <div className="container mx-auto px-4 py-12">
-        {/* Featured Post */}
         {featuredPost && !searchParams.q && !searchParams.category && currentPage === 1 && (
           <section className="mb-12">
             <h2 className="text-3xl font-bold mb-6 text-g-text">Featured Post</h2>
@@ -194,14 +191,16 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
         )}
 
         <div className="flex flex-col lg:flex-row gap-12">
-          {/* Main Content */}
           <main className="lg:w-2/3">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-g-text">
-                {searchParams.q ? `Search Results for "${searchParams.q}"` : 
-                 searchParams.category ? `Category: ${searchParams.category}` :
-                 searchParams.tag ? `Tag: ${searchParams.tag}` : 
-                 'Latest Posts'}
+                {searchParams.q
+                  ? `Search Results for "${searchParams.q}"`
+                  : searchParams.category
+                  ? `Category: ${searchParams.category}`
+                  : searchParams.tag
+                  ? `Tag: ${searchParams.tag}`
+                  : 'Latest Posts'}
               </h2>
               <span className="text-g-muted">
                 {totalPosts} posts found
@@ -293,13 +292,10 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
             )}
           </main>
 
-          {/* Sidebar */}
           <aside className="lg:w-1/3">
             <div className="space-y-8">
-              {/* Categories */}
               <BlogCategories categories={categories} />
               
-              {/* Popular Tags */}
               <div className="bg-g-secondary p-6 rounded-lg">
                 <h3 className="text-lg font-bold mb-4 text-g-text">Popular Tags</h3>
                 <div className="flex flex-wrap gap-2">
@@ -315,7 +311,6 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
                 </div>
               </div>
 
-              {/* Newsletter Signup */}
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-lg text-white">
                 <h3 className="text-lg font-bold mb-3">Stay Updated</h3>
                 <p className="text-purple-100 mb-4 text-sm">
@@ -343,5 +338,4 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
   );
 }
 
-// Enable ISR
 export const revalidate = 300;
