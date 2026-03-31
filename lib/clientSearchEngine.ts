@@ -1,9 +1,9 @@
-// lib/clientSearchOptimized.ts
+// lib/clientSearch d.ts
 "use client";
 
 import { Document } from "flexsearch";
 
-interface OptimizedSearchEngine {
+interface  dSearchEngine {
   index: Document | null;
   games: Map<string, any>;
   isReady: boolean;
@@ -14,8 +14,8 @@ interface OptimizedSearchEngine {
   };
 }
 
-class OptimizedGameSearch {
-  private engine: OptimizedSearchEngine = {
+class  dGameSearch {
+  private engine:  dSearchEngine = {
     index: null,
     games: new Map(),
     isReady: false,
@@ -44,7 +44,6 @@ class OptimizedGameSearch {
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-        optimize: true,               // <-- stays here
         context: {
           resolution: 3,
           depth: 2,
@@ -133,7 +132,7 @@ class OptimizedGameSearch {
         tokenize: "reverse",
         resolution: 7,
   
-        optimize: true, // root-level
+          // root-level
         context: { resolution: 3, depth: 2, bidirectional: true },
         document: {
           id: "slug",
@@ -237,4 +236,4 @@ class OptimizedGameSearch {
   /* extractGameIds, applyFilters, compareGames, getStats … */
 }
 
-export const clientSearchEngine = optimizedGameSearch;
+export const clientSearchEngine =  dGameSearch;
