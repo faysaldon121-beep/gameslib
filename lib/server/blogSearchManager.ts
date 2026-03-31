@@ -109,7 +109,6 @@ class BlogRuntimeSearchManager {
       preset: 'memory',
       tokenize: 'forward',
       resolution: 7,
-      minlength: 2,
       document: {
         id: 'slug',
         index: [
