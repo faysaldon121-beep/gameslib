@@ -1,133 +1,89 @@
-// app/search/page.tsx
-import { Suspense } from 'react';
-import { Metadata } from 'next';
-import SearchContent from './SearchContent';
-import connectDB from '@/lib/mongodb';
-import Game from '@/models/Game';
+// app/search/page.tsx (Next.js App Router)
+import SearchResults from '@/components/SearchResults';
+import { searchSystem } from '@/lib/server/search-system';
 
-export const metadata: Metadata = {
-  title: 'Search Games | GameHub',
-  description: 'Search and find your favorite free PC games'
-};
+// Enable static generation with revalidation
+export const revalidate = 3600; // Revalidate every hour
 
-interface SearchParams {
-  q?: string;
-  genre?: string;
-  platform?: string;
-  page?: string;
-  sort?: string;
+// Generate metadata for SEO
+export async function generateMetadata({ searchParams }: { searchParams: { q?: string } }) {
+  const query = searchParams.q || '';
+  
+  return {
+    title: query ? `Search results for "${query}"` : 'Game Search',
+    description: `Find and download ${query} games. Browse our collection of free games with direct download links.`,
+    openGraph: {
+      title: query ? `Search: ${query}` : 'GamesLib',
+      description: `Search our free games for ${query}`,
+      type: 'website'
+    }
+  };
 }
 
-async function getSearchData(searchParams: SearchParams) {
-  try {
-    await connectDB();
-    
-    // Get basic fallback results for server-side rendering
-    const query: any = {};
-    if (searchParams.q) query.$text = { $search: searchParams.q };
-    if (searchParams.genre) query.genre = searchParams.genre;
-    if (searchParams.platform) query.platforms = { $in: [searchParams.platform] };
-    
-    const fallbackGames = await Game.find(query)
-      .sort({ isFeatured: -1, averageRating: -1 })
-      .limit(24)
-      .lean();
-
-    // Get ALL games for client-side search enhancement
-    const allGames = await Game.find({})
-      .select({
-        title: 1,
-        slug: 1,
-        description: 1,
-        shortDescription: 1,
-        coverImage: 1,
-        genre: 1,
-        platforms: 1,
-        version: 1,
-        developer: 1,
-        publisher: 1,
-        releaseDate: 1,
-        requirements: 1,
-        downloadLinks: 1,
-        fileSize: 1,
-        isFeatured: 1,
-        averageRating: 1,
-        reviewCount: 1,
-        downloadCount: 1,
-        tags: 1,
-        changelog: 1,
-        createdAt: 1,
-        updatedAt: 1
-      })
-      .lean();
-
-    // Get filter options
-    const [genres, platforms] = await Promise.all([
-      Game.distinct('genre').then(results => results.filter(Boolean).sort()),
-      Game.aggregate([
-        { $unwind: '$platforms' },
-        { $group: { _id: '$platforms' } },
-        { $sort: { _id: 1 } }
-      ]).then(results => results.map(r => r._id).filter(Boolean))
-    ]);
-
-    // Process games for GameData format (for your hook)
-    const processedGames = allGames.map(game => ({
-      ...game,
-      systemRequirements: [
-        game.requirements?.minimum?.os,
-        game.requirements?.minimum?.cpu,
-        game.requirements?.minimum?.ram,
-        game.requirements?.minimum?.gpu,
-        game.requirements?.minimum?.storage,
-        game.requirements?.recommended?.os,
-        game.requirements?.recommended?.cpu,
-        game.requirements?.recommended?.ram,
-        game.requirements?.recommended?.gpu,
-        game.requirements?.recommended?.storage
-      ].filter(Boolean).join(' ').toLowerCase(),
-      downloadInfo: game.downloadLinks?.map((link: any) => 
-        `${link.label} ${link.host || ''} ${link.size || ''}`
-      ).join(' ').toLowerCase() || ''
-    }));
-
+// This runs on the server for initial load
+export async function getServerSideProps({ searchParams }: { searchParams: { q?: string; genre?: string; platform?: string; minRating?: string } }) {
+  const query = searchParams.q || '';
+  
+  if (!query) {
     return {
-      fallbackGames: JSON.parse(JSON.stringify(fallbackGames)),
-      allGames: JSON.parse(JSON.stringify(processedGames)),
-      genres,
-      platforms
+      props: {
+        initialQuery: '',
+        initialResults: []
+      }
     };
+  }
+
+  try {
+    // Ensure search system is initialized
+    await searchSystem.initialize();
     
-  } catch (error) {
-    console.error('Error fetching search data:', error);
+    // Perform search
+    const results = await searchSystem.search(query, {
+      limit: 50,
+      genre: searchParams.genre || undefined,
+      platform: searchParams.platform || undefined,
+      minRating: parseFloat(searchParams.minRating) || undefined
+    });
+
     return {
-      fallbackGames: [],
-      allGames: [],
-      genres: [],
-      platforms: []
+      props: {
+        initialQuery: query,
+        initialResults: results
+      }
+    };
+  } catch (error) {
+    console.error('Server-side search failed:', error);
+    return {
+      props: {
+        initialQuery: query,
+        initialResults: [],
+        error: 'Search failed. Please try again.'
+      }
     };
   }
 }
 
-export default async function SearchPage({
-  searchParams
-}: {
-  searchParams: SearchParams;
+export default function SearchPage({ initialQuery, initialResults }: { 
+  initialQuery: string; 
+  initialResults: any[];
 }) {
-  const data = await getSearchData(searchParams);
-  
   return (
-    <div className="min-h-screen bg-g-bg">
-      <Suspense fallback={
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {initialQuery ? `Search Results for "${initialQuery}"` : 'Search Games'}
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Find and download your favorite games from our collection.
+          </p>
         </div>
-      }>
-        <SearchContent 
-          {...data}
-          searchParams={searchParams}
+
+        <SearchResults 
+          initialQuery={initialQuery}
+          initialResults={initialResults}
         />
-      </Suspense>
+      </div>
     </div>
   );
 }
