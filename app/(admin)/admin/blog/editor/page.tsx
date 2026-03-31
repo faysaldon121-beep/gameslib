@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function BlogEditor() {
@@ -16,13 +16,12 @@ export default function BlogEditor() {
     content: '',
     featuredImage: '',
     category: '',
-    tags: '', // We'll convert this to an array on submit
+    tags: '',
     isPublished: false,
     isFeatured: false,
-    authorName: 'Admin', // Default author
+    authorName: 'Admin',
   });
 
-  // Fetch data if we are editing an existing post
   useEffect(() => {
     if (postId) {
       fetch(`/api/admin/blog`)
@@ -40,16 +39,31 @@ export default function BlogEditor() {
     }
   }, [postId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target as any;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? e.target.checked : value
-    }));
+  // Corrected handleChange function
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else {
+      const { value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const generateSlug = () => {
-    const slug = formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const slug = formData.title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
     setFormData(prev => ({ ...prev, slug }));
   };
 
@@ -57,7 +71,6 @@ export default function BlogEditor() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Format data to match your Mongoose Schema
     const payload = {
       ...formData,
       tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
