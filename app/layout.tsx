@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import 'prismjs/themes/prism-tomorrow.css';
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import keywordsData from "@/lib/keywords.json";
