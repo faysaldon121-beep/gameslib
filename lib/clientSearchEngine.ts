@@ -1,6 +1,6 @@
 // lib/clientSearchEngine.ts
 "use client";
-import { Document as FlexDocument } from 'flexsearch';  // ← aliased to avoid type conflict
+import { Document as FlexDocument } from 'flexsearch';
 import { GameData } from '@/lib/server/runtimeSearchManager';
 
 interface SearchOptions {
@@ -18,7 +18,7 @@ interface SearchResult {
 }
 
 class ClientSearchEngine {
-  private index: FlexDocument<any> | null = null;  // ← use FlexDocument<any>
+  private index: FlexDocument<any> | null = null;
   private games: Map<string, GameData> = new Map();
   private isReady = false;
 
@@ -30,7 +30,7 @@ class ClientSearchEngine {
     try {
       console.log('🔄 Initializing client search...');
 
-      const index = new FlexDocument<any>({  // ← also use FlexDocument here
+      const index = new FlexDocument<any>({
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
@@ -47,41 +47,34 @@ class ClientSearchEngine {
             {
               field: "title",
               tokenize: "forward",
-              optimize: true,
               resolution: 9
             },
             {
               field: "shortDescription",
               tokenize: "forward",
-              optimize: true,
               resolution: 7
             },
             {
               field: "description",
               tokenize: "strict",
-              optimize: true,
               resolution: 5,
               minlength: 3
             },
             {
               field: "genre",
-              tokenize: "strict",
-              optimize: true
+              tokenize: "strict"
             },
             {
               field: "developer",
-              tokenize: "forward",
-              optimize: true
+              tokenize: "forward"
             },
             {
               field: "publisher",
-              tokenize: "forward",
-              optimize: true
+              tokenize: "forward"
             },
             {
               field: "tags",
-              tokenize: "strict",
-              optimize: true
+              tokenize: "strict"
             },
             {
               field: "platforms",
