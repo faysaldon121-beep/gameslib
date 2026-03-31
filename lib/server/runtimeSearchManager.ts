@@ -197,7 +197,7 @@ class RuntimeSearchManager {
         preset: "memory",
         tokenize: "reverse",
         resolution: 7,
-        minlength: 2, // Allowed at root level
+     //   minlength: 2,
         context: {
           resolution: 3,
           depth: 2,
