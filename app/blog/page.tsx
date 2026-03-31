@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     title: 'Gaming Blog | GameHub',
     description: 'Latest gaming news, reviews, and tutorials',
     type: 'website',
-    url: 'https://yourdomain.com/blog'
+    url: 'https://gameslib.vercel.app/blog'
   },
   twitter: {
     card: 'summary_large_image',
@@ -34,7 +34,21 @@ export const metadata: Metadata = {
     }
   }
 };
-
+type BlogPostSummary = {
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  featuredImage: string;
+  category: string;
+  readingTime: number;
+  publishedAt?: Date | string;
+  author: {
+    name: string;
+    avatar?: string;
+  };
+  tags: string[];
+};
 interface SearchParams {
   category?: string;
   tag?: string;
@@ -210,7 +224,7 @@ export default async function BlogPage({ searchParams }: { searchParams: SearchP
             {posts.length > 0 ? (
               <>
                 <div className="grid gap-8 mb-12">
-                  {posts.map((post) => (
+                  {posts.map((post: BlogPostSummary) => (
                     <article key={post._id} className="bg-g-secondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                       <div className="md:flex">
                         <div className="md:w-1/3">
