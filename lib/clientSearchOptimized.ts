@@ -162,7 +162,9 @@ class OptimizedGameSearch {
       });
 
       // Import the pre-built index
-      await index.import(serializedIndex, "slug");
+for (const key of Object.keys(serializedIndex)) {
+        await index.import(key, serializedIndex[key]);
+      }
 
       // Store games data
       this.engine.games.clear();
