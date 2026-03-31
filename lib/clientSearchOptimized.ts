@@ -162,7 +162,7 @@ class OptimizedGameSearch {
       });
 
       // Import the pre-built index
-      await index.import(serializedIndex);
+      await index.import(serializedIndex, "slug");
 
       // Store games data
       this.engine.games.clear();
