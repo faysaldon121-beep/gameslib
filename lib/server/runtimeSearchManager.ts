@@ -263,7 +263,7 @@ class RuntimeSearchManager {
         processedGames.push(processedGame);
       }
 
-      const serializedIndex = await index.export();
+      const serializedIndex = await index.export("json");
       
       this.indexCache = {
         serializedIndex,
