@@ -129,8 +129,8 @@ class BlogRuntimeSearchManager {
       coverImage: post.featuredImage,
       category: post.category,
       tags: post.tags || [],
-      publishedAt: post.publishedAt.toISOString(),
-      updatedAt: post.updatedAt.toISOString(),
+      publishedAt: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date().toISOString(),
+      updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
     }));
 
     for (const p of processed) {
