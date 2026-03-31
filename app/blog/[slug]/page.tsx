@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import connectDB from '@/lib/mongodb';
-import BlogPost, { IBlogPost } from '@/models/BlogPost';
+import BlogPost from '@/models/BlogPost';
 import ShareButtons from '@/components/blog/ShareButtons';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogStructuredData from '@/components/blog/BlogStructuredData';
@@ -14,9 +14,38 @@ interface Props {
   params: { slug: string };
 }
 
-// Shape for lean documents (plain objects, not full Mongoose docs)
-type BlogPostDoc = Omit<IBlogPost, keyof Document> & {
+// Explicit shape for lean documents to avoid Omit conflicts
+type BlogPostDoc = {
   _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  featuredImage: string;
+  author: {
+    name: string;
+    avatar?: string;
+    bio?: string;
+    social?: {
+      twitter?: string;
+      linkedin?: string;
+      github?: string;
+    };
+  };
+  category: string;
+  tags: string[];
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    focusKeyword?: string;
+    canonicalUrl?: string;
+  };
+  readingTime: number;
+  views: number;
+  isPublished: boolean;
+  isFeatured: boolean;
+  publishedAt?: Date | string;
+  updatedAt?: Date | string;
 };
 
 async function getBlogPost(slug: string): Promise<{
@@ -102,7 +131,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           alt: post.title
         }
       ],
-      url: `${process.env.NEXT_PUBLIC_SITE_URL}/blog/${post.slug}`
+      url: `${process.env.NEXT_PUBLIC_SITE_URL||"https://gameslib.vercel.app"}/${post.slug}`
     },
     twitter: {
       card: 'summary_large_image',
