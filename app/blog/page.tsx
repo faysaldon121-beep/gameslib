@@ -9,9 +9,9 @@ import Pagination from '@/components/ui/Pagination';
 import { CalendarDaysIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 export const metadata: Metadata = {
-  title: 'Gaming Blog | Latest Gaming News, Reviews & Tutorials | GameHub',
+  title: 'Gaming Blog | Latest Gaming News, Reviews & Tutorials | Gameslib',
   description: 'Stay updated with the latest gaming news, in-depth game reviews, tutorials, and industry insights. Your ultimate source for gaming content.',
-  keywords: 'gaming blog, game reviews, gaming news, gaming tutorials, PC games, game guides',
+  keywords: 'gaming blog, game reviews, gaming bible, game news, gaming news, gaming tutorials, PC games, game guides',
   openGraph: {
     title: 'Gaming Blog | GameHub',
     description: 'Latest gaming news, reviews, and tutorials',
