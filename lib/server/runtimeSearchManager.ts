@@ -263,7 +263,17 @@ class RuntimeSearchManager {
         processedGames.push(processedGame);
       }
 
-      const serializedIndex = await index.export("json");
+            // 1. Create an empty object to hold the pieces
+      const serializedIndex: Record<string, any> = {};
+      
+      // 2. FlexSearch hands us each piece one by one via this callback
+      await index.export((key: string, data: any) => {
+        serializedIndex[key] = data;
+      });
+      
+      this.indexCache = {
+        serializedIndex,
+        gamesData: processedGames,
       
       this.indexCache = {
         serializedIndex,
