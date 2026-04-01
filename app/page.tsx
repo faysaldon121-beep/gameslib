@@ -19,8 +19,29 @@ async function getData() {
   return { featuredGames, sponsors, totalGames };
 }
 
+async function getTopGames(page = 1) {
+  await connectDB();
+  const skip = (page - 1) * PAGE_SIZE;
+
+  const [games, total] = await Promise.all([
+    Game.find()
+      .sort({ averageRating: -1, reviewCount: -1 }) // primary & tie-breaker
+      .skip(skip)
+      .limit(PAGE_SIZE)
+      .select(
+        'title slug shortDescription coverImage genre averageRating reviewCount version platforms'
+      )
+      .lean(),
+    Game.countDocuments()
+  ]);
+
+  return { games, total, page, totalPages: Math.ceil(total / PAGE_SIZE) };
+}
+
 export default async function HomePage() {
-  const { featuredGames, sponsors, totalGames } = await getData();
+  let { sponsors, totalGames } = await getData();
+  let featuredGames = await getTopGames();
+  
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.net";
   const websiteSchema = {
     '@context': 'https://schema.org',
@@ -44,7 +65,7 @@ export default async function HomePage() {
         <h2 className="section-title">Featured Games</h2>
         <p className="section-sub">Hand-picked titles with the highest community ratings</p>
         <Suspense fallback={<div className="h-64 skeleton rounded-xl" />}>
-          <FeaturedGames games={featuredGames as any[]} />
+          <FeaturedGames games={featuredGames} />
         </Suspense>
       </section>
       {sponsors.length > 0 && (
