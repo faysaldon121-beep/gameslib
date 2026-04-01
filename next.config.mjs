@@ -17,6 +17,10 @@ const nextConfig = {
     { protocol: "https", hostname: "ankergames.net" },
     {
         protocol: 'https',
+        hostname: '**',
+    },
+    {
+        protocol: 'https',
         hostname: 'ankergames.net',
         port: '',
         pathname: '/uploads/**'
