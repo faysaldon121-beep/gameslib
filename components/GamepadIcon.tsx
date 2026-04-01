@@ -2,8 +2,8 @@ import React from 'react';
 
 export default function GamepadIcon({
   className = '',
-  width = 256,
-  height = 256,
+  width = 48,
+  height = 48,
   ...props
 }: React.SVGProps<SVGSVGElement>) {
   return (
