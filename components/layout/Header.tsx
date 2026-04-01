@@ -104,10 +104,16 @@ export default function Header() {
             </div>
 
             <Link
-              href="/collections"
+              href="/blog"
               className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
             >
               Collections
+            </Link>
+            <Link
+              href="/collections"
+              className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+            >
+              Blog
             </Link>
 
             {/* More Dropdown */}
