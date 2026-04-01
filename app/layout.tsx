@@ -7,7 +7,6 @@ import Script from 'next/script';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
 const keywords = keywordsData.map((item: { text: string }) => item.text);
 import Providers from "@/components/Providers";
-import '@/lib/server/startup'; // This will auto-initialize the search manager
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
