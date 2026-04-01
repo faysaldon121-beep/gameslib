@@ -23,7 +23,7 @@ export default function GameCard({ game }: GameCardProps) {
     <Link href={`/games/${game.slug}`} className="card overflow-hidden group block">
       <div className="relative aspect-video overflow-hidden">
         <Image
-          src={game.coverImage || "https://placehold.co/800x450/0f0f1a/7c3aed?text=No+Image"}
+          src={"/api/image-proxy/"+game.coverImage || "https://placehold.co/800x450/0f0f1a/7c3aed?text=No+Image"}
           alt={game.title}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
