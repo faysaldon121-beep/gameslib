@@ -40,13 +40,7 @@ export default function Header() {
 
           {/* Center: Navigation (Desktop) */}
           <nav className="hidden lg:flex items-center gap-1">
-            <Link
-              href="/"
-              className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
-            >
-              Home
-            </Link>
-            
+             
             <Link
               href="/games"
               className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
@@ -107,13 +101,13 @@ export default function Header() {
               href="/blog"
               className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
             >
-              Collections
+              Blog
             </Link>
             <Link
               href="/collections"
               className="px-3 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors"
             >
-              Blog
+              Collections
             </Link>
 
             {/* More Dropdown */}
