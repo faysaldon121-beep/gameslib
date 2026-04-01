@@ -90,10 +90,29 @@ const GameSchema = new Schema<IGame>({
   changelog: { type: String, default: "" },
 }, { timestamps: true });
 
-GameSchema.index({ title: "text", description: "text", tags: "text" });
-// Removed duplicate index: GameSchema.index({ slug: 1 });
-GameSchema.index({ genre: 1 });
 GameSchema.index({ isFeatured: -1, averageRating: -1 });
+GameSchema.index(
+  {
+    title: "text",
+    tags: "text",
+    developer: "text",
+    shortDescription: "text",
+  },
+  {
+    weights: {
+      title: 10,
+      tags: 5,
+      developer: 3,
+      shortDescription: 1,
+    },
+    name: "game_search_index",
+  }
+);
+
+// Other useful indexes
+GameSchema.index({ slug: 1 });
+GameSchema.index({ genre: 1 });
+GameSchema.index({ platforms: 1 });
 
 const Game: Model<IGame> = mongoose.models.Game ?? mongoose.model<IGame>("Game", GameSchema);
 
