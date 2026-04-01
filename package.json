@@ -25,7 +25,6 @@
     "tailwind-merge": "^2.4.0",
     "puppeteer-core": "^23.5.0",
     "@sparticuz/chromium-min": "^141.0.0",
-    "flexsearch": "^0.8.212",
     "@heroicons/react": "^2.1.5"  ,
     "@tailwindcss/typography": "^0.5.10",
     "gray-matter": "^4.0.3",
@@ -36,9 +35,11 @@
     "remark-html": "^16.0.1",
     "remark-rehype": "^11.0.0",
     "rehype-highlight": "^7.0.0",
-    "rehype-stringify": "^10.0.0"
+    "rehype-stringify": "^10.0.0",
+     "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.7",
     "@types/node": "^20",
     "@types/bcryptjs": "^2.4.6",
     "@types/react": "^18",
