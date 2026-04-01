@@ -1,4 +1,3 @@
-// scripts/rebuild-search-index.ts
 import mongoose from 'mongoose';
 import { connectDB } from '../lib/mongodb';
 import BlogPost from '../models/BlogPost';
@@ -8,28 +7,32 @@ async function rebuildSearchIndex() {
     console.log('🔄 Connecting to database...');
     await connectDB();
 
+    // Ensure db is defined
     if (!mongoose.connection.db) {
       throw new Error('Database connection not established');
     }
-
     const db = mongoose.connection.db;
-    const collectionName = 'blogposts'; // MongoDB collection name (pluralized lowercase)
 
+    const collectionName = 'blogposts'; // Your collection (MongoDB defaults to plural + lowercase)
     console.log('📚 Working with collection:', collectionName);
 
-    // Get the collection
     const collection = db.collection(collectionName);
 
     // Drop existing text indexes
     console.log('🗑️  Dropping existing text indexes...');
     const indexes = await collection.indexes();
-    
+
     for (const index of indexes) {
-      // Check if it's a text index
-      const indexValues = Object.values(index.key || {});
-      if (indexValues.includes('text')) {
-        console.log(`   Dropping text index: ${index.name}`);
-        await collection.dropIndex(index.name);
+      // Check if index is a text index
+      const indexKeys = Object.values(index.key || {});
+      if (indexKeys.includes('text')) {
+        // Safely guard: index.name must be defined before calling dropIndex
+        if (typeof index.name === 'string') {
+          console.log(`   Dropping text index: ${index.name}`);
+          await collection.dropIndex(index.name);
+        } else {
+          console.warn(`   Skipping unnamed text index with key: ${JSON.stringify(index.key)}`);
+        }
       }
     }
 
@@ -58,12 +61,11 @@ async function rebuildSearchIndex() {
 
     console.log('✅ Text index rebuilt successfully!');
 
-    // Optional: Test the search
+    // Optional: test search
     const testQuery = 'gaming';
     console.log(`\n🔍 Testing search with query: "${testQuery}"`);
-    
     const results = await BlogPost.find(
-      { $text: { $search: testQuery } },
+      { $text: { $search: testQuery }, isPublished: true },
       { score: { $meta: 'textScore' } }
     )
       .sort({ score: { $meta: 'textScore' } })
@@ -76,16 +78,19 @@ async function rebuildSearchIndex() {
       console.log(`   ${i + 1}. ${post.title} (${post.slug})`);
     });
 
-    // Get index info
+    // Show current indexes
     const newIndexes = await collection.indexes();
     console.log('\n📋 Current indexes:');
     newIndexes.forEach((idx) => {
-      console.log(`   - ${idx.name}: ${JSON.stringify(idx.key)}`);
+      console.log(`   - ${idx.name || '(unnamed)'}: ${JSON.stringify(idx.key)}`);
     });
 
-    // Count documents
-    const count = await BlogPost.countDocuments({ isPublished: true });
-    console.log(`\n📊 Total published posts: ${count}`);
+    // Stats
+    const total = await BlogPost.countDocuments();
+    const published = await BlogPost.countDocuments({ isPublished: true });
+    console.log(`\n📊 Database stats:`);
+    console.log(`   Total posts: ${total}`);
+    console.log(`   Published posts: ${published}`);
 
   } catch (error) {
     console.error('❌ Error rebuilding search index:', error);
