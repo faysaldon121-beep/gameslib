@@ -1,6 +1,6 @@
 // lib/server/blogSearchManager.ts
 
-import { connectDB } from './db';
+import { connectDB } from '../db';
 import BlogPost, { IBlogPost } from '@/models/BlogPost';
 
 export interface BlogSearchData {
