@@ -1,6 +1,6 @@
 // scripts/rebuild-search-index.ts
 import mongoose from 'mongoose';
-import { connectDB } from '../lib/server/db';
+import { connectDB } from '../lib/mongodb';
 import BlogPost from '../models/BlogPost';
 
 async function rebuildSearchIndex() {
