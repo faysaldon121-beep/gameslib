@@ -1,11 +1,27 @@
-// app/auth/signin/page.tsx (minor fix: client signIn)
+// app/auth/login/page.tsx
 "use client";
-import { signIn, getProviders } from 'next-auth/react';  // ✅ Client-side
+import { signIn, getProviders } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 
-export default function SignInPage() {
+// Loading component
+function SignInLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-g-background p-8">
+      <div className="bg-g-card p-8 rounded-2xl shadow-2xl max-w-md w-full">
+        <h1 className="text-3xl font-bold text-center mb-8 text-white">GamesLib</h1>
+        <div className="animate-pulse space-y-4">
+          <div className="h-12 bg-g-muted/20 rounded-xl"></div>
+          <div className="h-12 bg-g-muted/20 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Actual sign-in component that uses useSearchParams
+function SignInContent() {
   const [providers, setProviders] = useState<Record<string, any>>({});
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
@@ -21,7 +37,9 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-g-background p-8">
       <div className="bg-g-card p-8 rounded-2xl shadow-2xl max-w-md w-full">
         <h1 className="text-3xl font-bold text-center mb-8 text-white">GamesLib</h1>
-        <p className="text-g-muted text-center mb-6 text-sm">Optional login for favorites & download history</p>
+        <p className="text-g-muted text-center mb-6 text-sm">
+          Optional login for favorites & download history
+        </p>
         
         <div className="space-y-3">
           {Object.values(providers).map((provider: any) => (
@@ -42,5 +60,14 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<SignInLoading />}>
+      <SignInContent />
+    </Suspense>
   );
 }
