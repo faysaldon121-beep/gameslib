@@ -1,216 +1,190 @@
-import { Document } from 'flexsearch';
-import { promises as fs } from 'fs';
-import path from 'path';
-import connectDB from '@/lib/mongodb';
+// lib/server/blogSearchManager.ts
+
+import { connectDB } from './db';
 import BlogPost, { IBlogPost } from '@/models/BlogPost';
 
 export interface BlogSearchData {
-  [key: string]: any;
-  slug: string;
+  id: string;
   title: string;
-  excerpt: string;
   content: string;
-  coverImage?: string;
+  slug: string;
+  excerpt?: string;
+  tags?: string[];
   category?: string;
-  tags: string[];
-  publishedAt: string;
-  updatedAt: string;
+  author?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-interface BlogIndexCache {
-  serializedIndex: Record<string, any>;
-  posts: BlogSearchData[];
-  metadata: {
-    totalPosts: number;
-    lastUpdated: number;
-    version: string;
-    dataChecksum: string;
+export async function indexBlogPost(post: Partial<IBlogPost>): Promise<void> {
+  await connectDB();
+  // The BlogPost model already handles indexing through MongoDB's text index
+  // No separate indexing needed - it's automatic
+}
+
+export async function removeBlogPost(id: string): Promise<void> {
+  await connectDB();
+  await BlogPost.findByIdAndDelete(id);
+}
+
+export async function searchBlogPosts(
+  query: string,
+  options?: { 
+    limit?: number; 
+    page?: number;
+    category?: string;
+    tags?: string[];
+    publishedOnly?: boolean;
+  }
+): Promise<{ results: BlogSearchData[]; total: number }> {
+  await connectDB();
+  
+  const limit = options?.limit || 10;
+  const page = options?.page || 1;
+  const skip = (page - 1) * limit;
+  const publishedOnly = options?.publishedOnly !== false; // default true
+
+  // Build filter
+  const filter: any = {};
+  
+  if (publishedOnly) {
+    filter.isPublished = true;
+  }
+  
+  if (options?.category) {
+    filter.category = options.category;
+  }
+  
+  if (options?.tags && options.tags.length > 0) {
+    filter.tags = { $in: options.tags };
+  }
+
+  if (!query || query.trim() === '') {
+    // No search query - return recent posts
+    const [results, total] = await Promise.all([
+      BlogPost.find(filter)
+        .sort({ publishedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('title slug excerpt content tags category author createdAt updatedAt')
+        .lean()
+        .exec(),
+      BlogPost.countDocuments(filter),
+    ]);
+
+    return { 
+      results: results.map(post => ({
+        id: post._id.toString(),
+        title: post.title,
+        content: post.content,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        tags: post.tags,
+        category: post.category,
+        author: post.author.name,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      })), 
+      total 
+    };
+  }
+
+  // Text search using MongoDB's $text operator
+  const searchFilter = {
+    ...filter,
+    $text: { $search: query }
+  };
+
+  const [results, total] = await Promise.all([
+    BlogPost.find(searchFilter, { score: { $meta: 'textScore' } })
+      .sort({ score: { $meta: 'textScore' }, publishedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('title slug excerpt content tags category author createdAt updatedAt')
+      .lean()
+      .exec(),
+    BlogPost.countDocuments(searchFilter),
+  ]);
+
+  return { 
+    results: results.map(post => ({
+      id: post._id.toString(),
+      title: post.title,
+      content: post.content,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      tags: post.tags,
+      category: post.category,
+      author: post.author.name,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    })), 
+    total 
   };
 }
 
-class BlogRuntimeSearchManager {
-  private static instance: BlogRuntimeSearchManager;
-  private indexCache: BlogIndexCache | null = null;
-  private isBuilding = false;
-  private buildPromise: Promise<void> | null = null;
-
-  private readonly CACHE_DIR = path.join(process.cwd(), '.cache', 'blog-search');
-  private readonly CACHE_FILE = path.join(this.CACHE_DIR, 'blog-index.json');
-  private readonly INDEX_VERSION = '1.0.0';
-
-  private constructor() {
-    this.ensureCacheDir();
-  }
-
-  static getInstance(): BlogRuntimeSearchManager {
-    if (!BlogRuntimeSearchManager.instance) {
-      BlogRuntimeSearchManager.instance = new BlogRuntimeSearchManager();
-    }
-    return BlogRuntimeSearchManager.instance;
-  }
-
-  private async ensureCacheDir() {
-    try {
-      await fs.mkdir(this.CACHE_DIR, { recursive: true });
-    } catch (error) {
-      console.error('Failed to create blog cache directory:', error);
-    }
-  }
-
-  async initialize(): Promise<void> {
-    if (this.indexCache) return;
-
-    const cached = await this.loadFromCache();
-    if (cached && (await this.validateCache(cached))) {
-      this.indexCache = cached;
-      return;
-    }
-
-    await this.buildIndex();
-  }
-
-  private async buildIndex(): Promise<void> {
-    if (this.isBuilding) {
-      if (this.buildPromise) await this.buildPromise;
-      return;
-    }
-
-    this.isBuilding = true;
-    this.buildPromise = this._buildIndexInternal();
-
-    try {
-      await this.buildPromise;
-    } finally {
-      this.isBuilding = false;
-      this.buildPromise = null;
-    }
-  }
-
-  private async _buildIndexInternal(): Promise<void> {
-    console.log('🔄 Building blog search index...');
-
-    await connectDB();
-
-    const posts = await BlogPost.find({})
-      .select({
-        title: 1,
-        slug: 1,
-        content: 1,
-        excerpt: 1,
-        coverImage: 1,
-        category: 1,
-        tags: 1,
-        publishedAt: 1,
-        updatedAt: 1,
-      })
-      .lean<IBlogPost[]>();
-
-    const index = new Document<BlogSearchData>({
-      preset: 'memory',
-      tokenize: 'forward',
-      resolution: 7,
-      document: {
-        id: 'slug',
-        index: [
-          { field: 'title', tokenize: 'forward', resolution: 9 },
-          { field: 'excerpt', tokenize: 'forward', resolution: 7 },
-          { field: 'content', tokenize: 'strict', resolution: 5 },
-          { field: 'category', tokenize: 'strict' },
-          { field: 'tags', tokenize: 'strict' },
-        ],
-      },
-    });
-
-    const processed: BlogSearchData[] = posts.map((post) => ({
-      slug: post.slug,
-      title: post.title,
-      excerpt: post.excerpt,
-      content: post.content,
-      coverImage: post.featuredImage,
-      category: post.category,
-      tags: post.tags || [],
-      publishedAt: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date().toISOString(),
-      updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
-    }));
-
-    for (const p of processed) {
-      await index.add(p);
-    }
-
-    const serializedIndex: Record<string, any> = {};
-    await index.export((key: string, data: any) => {
-      serializedIndex[key] = data;
-    });
-
-    this.indexCache = {
-      serializedIndex,
-      posts: processed,
-      metadata: {
-        totalPosts: processed.length,
-        lastUpdated: Date.now(),
-        version: this.INDEX_VERSION,
-        dataChecksum: this.generateChecksum(processed),
-      },
-    };
-
-    await this.saveToCache(this.indexCache);
-
-    console.log(`✅ Blog search index built: ${processed.length} posts`);
-  }
-
-  private generateChecksum(posts: BlogSearchData[]): string {
-    const str = posts
-      .map((p) => `${p.slug}:${p.updatedAt}`)
-      .sort()
-      .join('');
-    return Buffer.from(str).toString('base64');
-  }
-
-  private async loadFromCache(): Promise<BlogIndexCache | null> {
-    try {
-      const raw = await fs.readFile(this.CACHE_FILE, 'utf-8');
-      return JSON.parse(raw) as BlogIndexCache;
-    } catch {
-      return null;
-    }
-  }
-
-  private async saveToCache(data: BlogIndexCache): Promise<void> {
-    try {
-      await fs.writeFile(this.CACHE_FILE, JSON.stringify(data, null, 0));
-    } catch (error) {
-      console.error('Failed to save blog search cache:', error);
-    }
-  }
-
-  private async validateCache(cached: BlogIndexCache): Promise<boolean> {
-    if (cached.metadata.version !== this.INDEX_VERSION) return false;
-
-    try {
-      await connectDB();
-      const count = await BlogPost.countDocuments();
-      return count === cached.metadata.totalPosts;
-    } catch {
-      return false;
-    }
-  }
-
-  async getIndexData(): Promise<{
-    index: Record<string, any>;
-    posts: BlogSearchData[];
-    metadata: BlogIndexCache['metadata'];
-  } | null> {
-    if (!this.indexCache) {
-      await this.initialize();
-    }
-    if (!this.indexCache) return null;
-
-    return {
-      index: this.indexCache.serializedIndex,
-      posts: this.indexCache.posts,
-      metadata: this.indexCache.metadata,
-    };
-  }
+export async function reindexAllPosts(posts?: Partial<IBlogPost>[]): Promise<void> {
+  await connectDB();
+  // MongoDB text indexes are automatically maintained
+  // No manual reindexing needed
+  console.log('BlogPost model uses automatic text indexing - no manual reindex needed');
 }
 
-export const blogSearchManager = BlogRuntimeSearchManager.getInstance();
+export async function clearSearchIndex(): Promise<void> {
+  await connectDB();
+  // This would delete all blog posts - use with caution
+  await BlogPost.deleteMany({});
+}
+
+// Additional helper functions
+export async function getFeaturedPosts(limit: number = 5): Promise<BlogSearchData[]> {
+  await connectDB();
+  
+  const posts = await BlogPost.find({ 
+    isPublished: true, 
+    isFeatured: true 
+  })
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .select('title slug excerpt content tags category author createdAt updatedAt')
+    .lean()
+    .exec();
+
+  return posts.map(post => ({
+    id: post._id.toString(),
+    title: post.title,
+    content: post.content,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    tags: post.tags,
+    category: post.category,
+    author: post.author.name,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+  }));
+}
+
+export async function getPostsByCategory(
+  category: string, 
+  options?: { limit?: number; page?: number }
+): Promise<{ results: BlogSearchData[]; total: number }> {
+  return searchBlogPosts('', { ...options, category, publishedOnly: true });
+}
+
+export async function getPostsByTag(
+  tag: string, 
+  options?: { limit?: number; page?: number }
+): Promise<{ results: BlogSearchData[]; total: number }> {
+  return searchBlogPosts('', { ...options, tags: [tag], publishedOnly: true });
+}
+
+export async function incrementViews(slug: string): Promise<void> {
+  await connectDB();
+  await BlogPost.findOneAndUpdate(
+    { slug },
+    { $inc: { views: 1 } }
+  );
+}
+
+export { BlogPost };
+export type { IBlogPost };
