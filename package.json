@@ -41,6 +41,7 @@
      "flexsearch": "^0.7.43"
   },
   "devDependencies": {
+    "tsx": "^4.19.2",
     "@types/lodash": "^4.17.7",
     "@types/node": "^20",
     "@types/bcryptjs": "^2.4.6",
