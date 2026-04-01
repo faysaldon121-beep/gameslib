@@ -24,7 +24,7 @@ export default function ImageCarousel({ images, title, priority = false }: { ima
               className={`relative aspect-video overflow-hidden rounded-lg border ${index === active ? "border-g-purple" : "border-g-border"}`}
             >
               <img
-                src={"/api/image-proxy?url=" + encodeURIComponent(src)}
+                src={src}
                 alt={`${title} thumbnail ${index + 1}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
