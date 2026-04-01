@@ -149,7 +149,25 @@ blogPostSchema.pre('validate', function (next) {
 
   next();
 });
-
+blogPostSchema.index(
+  { 
+    title: 'text', 
+    content: 'text', 
+    excerpt: 'text', 
+    tags: 'text',
+    'author.name': 'text'
+  },
+  { 
+    weights: { 
+      title: 10, 
+      excerpt: 5, 
+      tags: 5,
+      'author.name': 3,
+      content: 1 
+    },
+    name: 'blog_text_search'
+  }
+);
 // Indexes for SEO and performance
 blogPostSchema.index({ slug: 1 });
 blogPostSchema.index({ isPublished: 1, publishedAt: -1 });
