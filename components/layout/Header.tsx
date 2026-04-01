@@ -134,9 +134,6 @@ export default function Header() {
               
               {moreOpen && (
                 <div className="absolute top-full right-0 mt-1 w-44 bg-[#1a1f3a] border border-gray-700/50 rounded-lg shadow-2xl py-1.5">
-                  <Link href="/publishers" className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5">
-                    Publishers
-                  </Link>
                   <Link href="/request" className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5">
                     Request
                   </Link>
@@ -250,9 +247,6 @@ export default function Header() {
 
             <Link href="/collections" className="block px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md">
               Collections
-            </Link>
-            <Link href="/publishers" className="block px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md">
-              Publishers
             </Link>
             <Link href="/request" className="block px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-md">
               Request
