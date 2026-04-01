@@ -1,53 +1,35 @@
+// app/api/blog/search/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { blogSearchManager } from '@/lib/server/blogSearchManager';
+import { searchBlogPosts } from '@/lib/server/blogSearchManager';
 
-export const dynamic = 'force-dynamic';
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get('q') || '';
+  const limit = parseInt(searchParams.get('limit') || '10');
+  const page = parseInt(searchParams.get('page') || '1');
+  const category = searchParams.get('category') || undefined;
+  const tags = searchParams.get('tags')?.split(',').filter(Boolean) || undefined;
 
-export async function GET(_request: NextRequest) {
   try {
-    const start = Date.now();
-    const data = await blogSearchManager.getIndexData();
-
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Blog search index not ready' },
-        { status: 503 }
-      );
-    }
-
-    const lightweightPosts = data.posts.map((post) => ({
-      slug: post.slug,
-      title: post.title,
-      excerpt: post.excerpt,
-      coverImage: post.coverImage,
-      category: post.category,
-      tags: post.tags,
-      publishedAt: post.publishedAt,
-      updatedAt: post.updatedAt,
-    }));
-
-    const responseTime = Date.now() - start;
-
-    return NextResponse.json(
-      {
-        index: data.index,
-        posts: lightweightPosts,
-        metadata: {
-          ...data.metadata,
-          serverResponseTime: responseTime,
-        },
-      },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-          'CDN-Cache-Control': 'public, s-maxage=300',
-        },
-      }
-    );
+    const { results, total } = await searchBlogPosts(query, { 
+      limit, 
+      page,
+      category,
+      tags,
+      publishedOnly: true 
+    });
+    
+    return NextResponse.json({ 
+      results, 
+      total, 
+      page, 
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
-    console.error('❌ Failed to serve blog search index:', error);
+    console.error('Search error:', error);
     return NextResponse.json(
-      { error: 'Failed to load blog search index' },
+      { error: 'Search failed', message: error instanceof Error ? error.message : 'Unknown error' }, 
       { status: 500 }
     );
   }
