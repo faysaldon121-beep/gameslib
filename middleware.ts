@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { searchSystem } from '@/lib/server/search-system';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,32 +14,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // --- Search system warmup ---
-  // Only trigger warmup on paths where it's needed (search API, search pages, homepage)
-  const shouldWarmup =
-    pathname.startsWith('/api/search') ||
-    pathname.startsWith('/search') ||
-    pathname === '/';
-
-  if (shouldWarmup && !searchSystem.isInitialized) {
-    try {
-      console.log('Warming up search system...');
-      await searchSystem.initialize().catch(console.error);
-    } catch (error) {
-      console.error('Search system warmup failed:', error);
-    }
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    // Admin routes
+    // Only run middleware on Admin routes now
     '/admin/:path*',
-    // Search warmup routes
-    '/api/search/:path*',
-    '/search/:path*',
-    '/',
   ],
 };
