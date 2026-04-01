@@ -195,7 +195,7 @@ export default function SearchBar({ defaultValue = "" }: { defaultValue?: string
                 ${i === selectedIndex ? "bg-g-border/50" : ""}`}
             >
               <div className="relative w-12 h-8 rounded overflow-hidden shrink-0">
-                <Image
+                <img
                   src={game.coverImage}
                   alt={game.title}
                   fill
