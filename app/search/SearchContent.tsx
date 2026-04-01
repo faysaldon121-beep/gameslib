@@ -1,77 +1,44 @@
 // app/search/SearchContent.tsx
 "use client";
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import GameCard from '@/components/games/GameCard';
-import SearchBar from '@/components/ui/SearchBar';
-import Pagination from '@/components/ui/Pagination';
-import { useClientSearchEnhancement } from '@/hooks/useClientSearchEnhancement';
-import { GameData } from '@/lib/server/runtimeSearchManager';
+
+import { useRouter, useSearchParams } from "next/navigation";
+import GameCard from "@/components/games/GameCard";
+import SearchBar from "@/components/ui/SearchBar";
+import Pagination from "@/components/ui/Pagination";
+import Link from "next/link";
 
 interface SearchContentProps {
-  fallbackGames: any[];
-  allGames: GameData[];
+  games: any[];
+  total: number;
+  currentPage: number;
+  totalPages: number;
+  query: string;
+  currentGenre: string;
+  currentPlatform: string;
+  currentSort: string;
   genres: string[];
   platforms: string[];
-  searchParams: any;
 }
 
-const ITEMS_PER_PAGE = 24;
-
 export default function SearchContent({
-  fallbackGames,
-  allGames,
+  games,
+  total,
+  currentPage,
+  totalPages,
+  query,
+  currentGenre,
+  currentPlatform,
+  currentSort,
   genres,
   platforms,
-  searchParams
 }: SearchContentProps) {
-  const urlSearchParams = useSearchParams();
   const router = useRouter();
-  const [displayedGames, setDisplayedGames] = useState(fallbackGames);
-  const [isUsingClientSearch, setIsUsingClientSearch] = useState(false);
+  const searchParams = useSearchParams();
 
-  // Use your existing hook
-  const {
-    searchResults,
-    isLoading,
-    isClientReady,
-    searchTime,
-    performSearch
-  } = useClientSearchEnhancement(fallbackGames, allGames);
-
-  // Perform search when URL params change
-  useEffect(() => {
-    const query = urlSearchParams.get('q') || '';
-    const genre = urlSearchParams.get('genre') || '';
-    const platform = urlSearchParams.get('platform') || '';
-    const sort = urlSearchParams.get('sort') || 'relevance';
-
-    if (isClientReady) {
-      setIsUsingClientSearch(true);
-      performSearch(query, {
-        genre: genre || undefined,
-        platform: platform || undefined,
-        sortBy: sort,
-        limit: 1000
-      });
-    }
-  }, [urlSearchParams, isClientReady, performSearch]);
-
-  // Handle pagination for client search results
-  useEffect(() => {
-    if (isUsingClientSearch) {
-      const page = parseInt(urlSearchParams.get('page') || '1');
-      const startIndex = (page - 1) * ITEMS_PER_PAGE;
-      const endIndex = startIndex + ITEMS_PER_PAGE;
-      setDisplayedGames(searchResults.slice(startIndex, endIndex));
-    } else {
-      setDisplayedGames(fallbackGames);
-    }
-  }, [searchResults, isUsingClientSearch, urlSearchParams, fallbackGames]);
-
+  // ── URL Update Helper ──
   const updateURL = (updates: Record<string, string | null>) => {
-    const params = new URLSearchParams(urlSearchParams);
-    
+    const params = new URLSearchParams(searchParams.toString());
+
     Object.entries(updates).forEach(([key, value]) => {
       if (value) {
         params.set(key, value);
@@ -79,11 +46,12 @@ export default function SearchContent({
         params.delete(key);
       }
     });
-    
-    if ('genre' in updates || 'platform' in updates || 'sort' in updates) {
-      params.delete('page');
+
+    // Reset page when filters change
+    if ("genre" in updates || "platform" in updates || "sort" in updates) {
+      params.delete("page");
     }
-    
+
     router.push(`/search?${params.toString()}`, { scroll: false });
   };
 
@@ -92,55 +60,37 @@ export default function SearchContent({
   };
 
   const clearAllFilters = () => {
-    const query = urlSearchParams.get('q');
     if (query) {
       router.push(`/search?q=${encodeURIComponent(query)}`);
     } else {
-      router.push('/search');
+      router.push("/search");
     }
   };
 
-  // Get pagination info
-  const getPaginationInfo = () => {
-    const totalResults = isUsingClientSearch ? searchResults.length : fallbackGames.length;
-    const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
-    const currentPage = parseInt(urlSearchParams.get('page') || '1');
-    
-    return { currentPage, totalPages, totalResults };
-  };
-
-  const paginationInfo = getPaginationInfo();
-  const hasActiveFilters = urlSearchParams.get('genre') || urlSearchParams.get('platform');
-  const searchQuery = urlSearchParams.get('q') || '';
+  const hasActiveFilters = !!currentGenre || !!currentPlatform;
+  const hasQuery = query.length > 0;
+  const hasResults = games.length > 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4 text-g-text">
-          {searchQuery ? `Search Results for "${searchQuery}"` : 'Search Games'}
+          {hasQuery ? `Search Results for "${query}"` : "Search Games"}
         </h1>
-        
+
         {/* Search Bar */}
         <div className="mb-6 max-w-2xl">
-          <SearchBar />
+          <SearchBar defaultValue={query} />
         </div>
 
-        {/* Search Stats */}
+        {/* Stats + Sort Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <span className="text-g-muted">
-              {paginationInfo.totalResults.toLocaleString()} games found
-            </span>
-            
-            {isClientReady && isUsingClientSearch && (
-              <span className="text-green-400 text-sm">
-                Enhanced search ({searchTime.toFixed(1)}ms)
+          <div className="flex items-center gap-4 flex-wrap">
+            {(hasQuery || hasActiveFilters) && (
+              <span className="text-g-muted">
+                {total.toLocaleString()} game{total !== 1 ? "s" : ""} found
               </span>
-            )}
-            
-            {isClientReady && (
-              <span className="text-purple-400 text-sm">• Fast search ready</span>
             )}
 
             {hasActiveFilters && (
@@ -151,51 +101,78 @@ export default function SearchContent({
                 Clear filters
               </button>
             )}
+
+            {/* Active filter badges */}
+            {currentGenre && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-600/20 text-purple-400 text-xs rounded-full">
+                {currentGenre}
+                <button
+                  onClick={() => handleFilterChange("genre", "")}
+                  className="hover:text-white ml-1"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {currentPlatform && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600/20 text-blue-400 text-xs rounded-full">
+                {currentPlatform}
+                <button
+                  onClick={() => handleFilterChange("platform", "")}
+                  className="hover:text-white ml-1"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
           </div>
 
           {/* Sort Dropdown */}
           <select
-            value={urlSearchParams.get('sort') || 'relevance'}
-            onChange={(e) => handleFilterChange('sort', e.target.value)}
-            className="bg-g-secondary border border-g-border rounded px-3 py-2 text-g-text"
+            value={currentSort}
+            onChange={(e) => handleFilterChange("sort", e.target.value)}
+            className="bg-g-secondary border border-g-border rounded px-3 py-2 text-g-text text-sm"
           >
             <option value="relevance">Sort: Relevance</option>
-            <option value="rating">Sort: Rating</option>
-            <option value="downloads">Sort: Downloads</option>
+            <option value="rating">Sort: Top Rated</option>
+            <option value="popular">Sort: Most Popular</option>
             <option value="newest">Sort: Newest</option>
-            <option value="title">Sort: Title A-Z</option>
           </select>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar Filters */}
+        {/* ── Sidebar Filters ── */}
         <aside className="lg:w-1/4">
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-24">
             {/* Genre Filter */}
             <div className="bg-g-secondary p-4 rounded-lg">
               <h3 className="font-semibold mb-3 text-g-text">Genre</h3>
-              <div className="space-y-2">
-                <label className="flex items-center">
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                <label className="flex items-center cursor-pointer group">
                   <input
                     type="radio"
                     name="genre"
-                    checked={!urlSearchParams.get('genre')}
-                    onChange={() => handleFilterChange('genre', '')}
-                    className="mr-2"
+                    checked={!currentGenre}
+                    onChange={() => handleFilterChange("genre", "")}
+                    className="mr-2 accent-purple-500"
                   />
-                  <span className="text-g-text">All Genres</span>
+                  <span className="text-g-text group-hover:text-purple-400 transition-colors">
+                    All Genres
+                  </span>
                 </label>
                 {genres.map((genre) => (
-                  <label key={genre} className="flex items-center">
+                  <label key={genre} className="flex items-center cursor-pointer group">
                     <input
                       type="radio"
                       name="genre"
-                      checked={urlSearchParams.get('genre') === genre}
-                      onChange={() => handleFilterChange('genre', genre)}
-                      className="mr-2"
+                      checked={currentGenre === genre}
+                      onChange={() => handleFilterChange("genre", genre)}
+                      className="mr-2 accent-purple-500"
                     />
-                    <span className="text-g-text">{genre}</span>
+                    <span className="text-g-text group-hover:text-purple-400 transition-colors">
+                      {genre}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -205,26 +182,30 @@ export default function SearchContent({
             <div className="bg-g-secondary p-4 rounded-lg">
               <h3 className="font-semibold mb-3 text-g-text">Platform</h3>
               <div className="space-y-2">
-                <label className="flex items-center">
+                <label className="flex items-center cursor-pointer group">
                   <input
                     type="radio"
                     name="platform"
-                    checked={!urlSearchParams.get('platform')}
-                    onChange={() => handleFilterChange('platform', '')}
-                    className="mr-2"
+                    checked={!currentPlatform}
+                    onChange={() => handleFilterChange("platform", "")}
+                    className="mr-2 accent-purple-500"
                   />
-                  <span className="text-g-text">All Platforms</span>
+                  <span className="text-g-text group-hover:text-purple-400 transition-colors">
+                    All Platforms
+                  </span>
                 </label>
                 {platforms.map((platform) => (
-                  <label key={platform} className="flex items-center">
+                  <label key={platform} className="flex items-center cursor-pointer group">
                     <input
                       type="radio"
                       name="platform"
-                      checked={urlSearchParams.get('platform') === platform}
-                      onChange={() => handleFilterChange('platform', platform)}
-                      className="mr-2"
+                      checked={currentPlatform === platform}
+                      onChange={() => handleFilterChange("platform", platform)}
+                      className="mr-2 accent-purple-500"
                     />
-                    <span className="text-g-text">{platform}</span>
+                    <span className="text-g-text group-hover:text-purple-400 transition-colors">
+                      {platform}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -232,50 +213,106 @@ export default function SearchContent({
           </div>
         </aside>
 
-        {/* Main Content */}
+        {/* ── Main Content ── */}
         <main className="lg:w-3/4">
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <span className="ml-3 text-g-text">Searching...</span>
-            </div>
-          )}
-
           {/* Games Grid */}
-          {!isLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-              {displayedGames.map((game) => (
-                <GameCard key={game.slug || game._id} game={game} />
-              ))}
-            </div>
+          {hasResults && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                {games.map((game: any) => (
+                  <GameCard key={game.slug || game._id} game={game} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Pagination currentPage={currentPage} totalPages={totalPages} />
+              )}
+            </>
           )}
 
           {/* No Results */}
-          {!isLoading && displayedGames.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-g-muted text-lg mb-4">
-                {searchQuery ? `No games found for "${searchQuery}"` : 'No games found'}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
-          )}
+          {!hasResults && hasQuery && <NoResults query={query} />}
 
-          {/* Pagination */}
-          {!isLoading && paginationInfo.totalPages > 1 && (
-            <Pagination
-              currentPage={paginationInfo.currentPage}
-              totalPages={paginationInfo.totalPages}
-            />
-          )}
+          {/* Empty State — no query entered */}
+          {!hasResults && !hasQuery && !hasActiveFilters && <EmptyState />}
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ── No Results ──
+function NoResults({ query }: { query: string }) {
+  return (
+    <div className="text-center py-16">
+      <div className="text-5xl mb-4">🔍</div>
+      <h2 className="text-xl font-semibold text-g-text mb-2">
+        No games found for &quot;{query}&quot;
+      </h2>
+      <p className="text-g-muted mb-6 max-w-md mx-auto">
+        Try checking your spelling, using different keywords, or browsing by genre.
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center">
+        <Link
+          href="/games"
+          className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Browse All Games
+        </Link>
+        <Link
+          href="/games?genre=Action"
+          className="px-5 py-2.5 bg-g-secondary border border-g-border text-g-text rounded-lg hover:bg-g-border/50 transition-colors"
+        >
+          Action Games
+        </Link>
+        <Link
+          href="/games?genre=RPG"
+          className="px-5 py-2.5 bg-g-secondary border border-g-border text-g-text rounded-lg hover:bg-g-border/50 transition-colors"
+        >
+          RPG Games
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Empty State ──
+function EmptyState() {
+  const popularSearches = [
+    "GTA",
+    "Minecraft",
+    "Action",
+    "Racing",
+    "RPG",
+    "Simulation",
+    "Horror",
+    "Open World",
+  ];
+
+  return (
+    <div className="text-center py-16">
+      <div className="text-5xl mb-4">🎮</div>
+      <h2 className="text-xl font-semibold text-g-text mb-2">
+        What are you looking for?
+      </h2>
+      <p className="text-g-muted mb-8">
+        Type a game name, genre, or developer to start searching.
+      </p>
+      <div className="max-w-lg mx-auto">
+        <p className="text-sm text-g-muted mb-3">Popular searches:</p>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {popularSearches.map((term) => (
+            <Link
+              key={term}
+              href={`/search?q=${encodeURIComponent(term)}`}
+              className="px-4 py-2 bg-g-secondary border border-g-border text-g-text text-sm
+                         rounded-full hover:bg-g-border/50 hover:border-purple-500 transition-all"
+            >
+              {term}
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
