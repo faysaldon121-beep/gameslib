@@ -1,96 +1,92 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export interface IRequirements {
-  os: string;
-  cpu: string;
-  ram: string;
-  gpu: string;
-  storage: string;
-  directx?: string;
-}
-
-export interface IDownloadLink {
-  label: string;
-  url: string;
-  size?: string;
-  host?: string;
-}
-
 export interface IGame extends Document {
   title: string;
   slug: string;
-  description: string;
   shortDescription: string;
+  description: string;
   coverImage: string;
-  images: string[];
+  screenshots: string[];
   genre: string;
-  platforms: string[];
-  version: string;
+  tags: string[];
   developer: string;
   publisher: string;
   releaseDate: Date;
-  requirements: {
-    minimum: IRequirements;
-    recommended: IRequirements;
+  version: string;
+  platforms: string[];
+  systemRequirements: {
+    minimum: {
+      os: string;
+      processor: string;
+      memory: string;
+      graphics: string;
+      storage: string;
+    };
+    recommended: {
+      os: string;
+      processor: string;
+      memory: string;
+      graphics: string;
+      storage: string;
+    };
   };
-  installationGuide: string[];
-  downloadLinks: IDownloadLink[];
+  downloadLinks: {
+    label: string;
+    url: string;
+  }[];
   fileSize: string;
-  isFeatured: boolean;
   averageRating: number;
   reviewCount: number;
+  isFeatured: boolean;
+  viewCount: number;
   downloadCount: number;
-  tags: string[];
-  changelog: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const RequirementsSchema = new Schema<IRequirements>({
-  os: { type: String, default: "" },
-  cpu: { type: String, default: "" },
-  ram: { type: String, default: "" },
-  gpu: { type: String, default: "" },
-  storage: { type: String, default: "" },
-  directx: { type: String, default: "" },
-}, { _id: false });
-
-const DownloadLinkSchema = new Schema<IDownloadLink>({
-  label: { type: String, required: true },
-  url: { type: String, required: true },
-  size: { type: String, default: "" },
-  host: { type: String, default: "Direct" },
-}, { _id: false });
-
-const GameSchema = new Schema<IGame>({
-  title: { type: String, required: true, trim: true },
-  slug: { type: String, required: true, unique: true, lowercase: true },
-  description: { type: String, required: true },
-  shortDescription: { type: String, default: "" },
-  coverImage: { type: String, default: "https://placehold.co/800x450/0f0f1a/7c3aed?text=No+Image" },
-  images: [{ type: String }],
-  genre: { type: String, required: true },
-  platforms: [{ type: String }],
-  version: { type: String, default: "1.0" },
-  developer: { type: String, default: "Unknown" },
-  publisher: { type: String, default: "Unknown" },
-  releaseDate: { type: Date, default: Date.now },
-  requirements: {
-    minimum: { type: RequirementsSchema, default: () => ({}) },
-    recommended: { type: RequirementsSchema, default: () => ({}) },
+const GameSchema = new Schema<IGame>(
+  {
+    title: { type: String, required: true },
+    slug: { type: String, required: true, unique: true },
+    shortDescription: { type: String, required: true },
+    description: { type: String, required: true },
+    coverImage: { type: String, required: true },
+    screenshots: [String],
+    genre: { type: String, required: true },
+    tags: [String],
+    developer: { type: String, default: "" },
+    publisher: { type: String, default: "" },
+    releaseDate: { type: Date },
+    version: { type: String, default: "1.0" },
+    platforms: [String],
+    systemRequirements: {
+      minimum: {
+        os: String,
+        processor: String,
+        memory: String,
+        graphics: String,
+        storage: String,
+      },
+      recommended: {
+        os: String,
+        processor: String,
+        memory: String,
+        graphics: String,
+        storage: String,
+      },
+    },
+    downloadLinks: [{ label: String, url: String }],
+    fileSize: String,
+    averageRating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
+    isFeatured: { type: Boolean, default: false },
+    viewCount: { type: Number, default: 0 },
+    downloadCount: { type: Number, default: 0 },
   },
-  installationGuide: [{ type: String }],
-  downloadLinks: [DownloadLinkSchema],
-  fileSize: { type: String, default: "" },
-  isFeatured: { type: Boolean, default: false },
-  averageRating: { type: Number, default: 0, min: 0, max: 5 },
-  reviewCount: { type: Number, default: 0 },
-  downloadCount: { type: Number, default: 0 },
-  tags: [{ type: String }],
-  changelog: { type: String, default: "" },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-GameSchema.index({ isFeatured: -1, averageRating: -1 });
+// ✅ WEIGHTED TEXT INDEX — this is the key
 GameSchema.index(
   {
     title: "text",
@@ -113,7 +109,9 @@ GameSchema.index(
 GameSchema.index({ slug: 1 });
 GameSchema.index({ genre: 1 });
 GameSchema.index({ platforms: 1 });
+GameSchema.index({ isFeatured: -1, averageRating: -1 });
 
-const Game: Model<IGame> = mongoose.models.Game ?? mongoose.model<IGame>("Game", GameSchema);
+const Game: Model<IGame> =
+  mongoose.models.Game || mongoose.model<IGame>("Game", GameSchema);
 
 export default Game;
