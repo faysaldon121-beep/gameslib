@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import debounce from "lodash/debounce";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -14,22 +15,8 @@ interface Suggestion {
   averageRating: number;
 }
 
-interface SearchBarProps {
-  defaultValue?: string;
-}
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
-
-export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
+export default function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -40,46 +27,63 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
-  const debouncedQuery = useDebounce(query, 400);
+  // Debounced API call using lodash
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchSuggestions = useCallback(
+    debounce(async (q: string) => {
+      if (q.trim().length < 2) {
+        setSuggestions([]);
+        setShowDropdown(false);
+        setLoading(false);
+        return;
+      }
 
-  // Fetch suggestions
-  useEffect(() => {
-    if (debouncedQuery.trim().length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    async function fetchSuggestions() {
-      setLoading(true);
       try {
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=6`,
-          { signal: controller.signal }
-        );
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=6`);
         const data = await res.json();
         setSuggestions(data.results || []);
         setShowDropdown(true);
         setSelectedIndex(-1);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          console.error("Search error:", err);
-        }
+      } catch (err) {
+        console.error("Search error:", err);
       } finally {
         setLoading(false);
       }
+    }, 400),
+    []
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => fetchSuggestions.cancel();
+  }, [fetchSuggestions]);
+
+  // Handle typing
+  const handleChange = (value: string) => {
+    setQuery(value);
+    setLoading(true);
+    fetchSuggestions(value);
+  };
+
+  // Submit full search
+  const submitSearch = (searchQuery: string) => {
+    fetchSuggestions.cancel();
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (searchQuery.trim()) {
+      params.set("q", searchQuery.trim());
+    } else {
+      params.delete("q");
     }
+    params.delete("page");
 
-    fetchSuggestions();
-
-    return () => controller.abort();
-  }, [debouncedQuery]);
+    router.push(`/search?${params.toString()}`);
+    setShowDropdown(false);
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    const handler = (e: MouseEvent) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(e.target as Node) &&
@@ -88,39 +92,21 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
       ) {
         setShowDropdown(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  // Navigate to search results
-  const submitSearch = useCallback(
-    (searchQuery: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (searchQuery.trim()) {
-        params.set("q", searchQuery.trim());
-      } else {
-        params.delete("q");
-      }
-      params.delete("page"); // Reset pagination
-      router.push(`/games?${params.toString()}`);
-      setShowDropdown(false);
-    },
-    [router, searchParams]
-  );
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < suggestions.length - 1 ? prev + 1 : prev
-        );
+        setSelectedIndex((p) => (p < suggestions.length - 1 ? p + 1 : p));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        setSelectedIndex((p) => (p > 0 ? p - 1 : -1));
         break;
       case "Enter":
         e.preventDefault();
@@ -140,13 +126,7 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
 
   return (
     <div className="relative w-full">
-      {/* Input */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submitSearch(query);
-        }}
-      >
+      <form onSubmit={(e) => { e.preventDefault(); submitSearch(query); }}>
         <div className="relative">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-g-muted"
@@ -161,26 +141,26 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
+
           <input
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
             onKeyDown={handleKeyDown}
             placeholder="Search games..."
             className="w-full pl-10 pr-10 py-2.5 bg-g-card border border-g-border rounded-xl
                        text-g-text placeholder:text-g-muted
-                       focus:outline-none focus:ring-2 focus:ring-g-accent focus:border-transparent
-                       transition-all"
+                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
-          {/* Loading spinner */}
+
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="w-4 h-4 border-2 border-g-muted border-t-g-accent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-g-muted border-t-purple-500 rounded-full animate-spin" />
             </div>
           )}
-          {/* Clear button */}
+
           {query && !loading && (
             <button
               type="button"
@@ -188,6 +168,7 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
                 setQuery("");
                 setSuggestions([]);
                 setShowDropdown(false);
+                fetchSuggestions.cancel();
                 inputRef.current?.focus();
               }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-g-muted hover:text-g-text"
@@ -198,7 +179,7 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
         </div>
       </form>
 
-      {/* Dropdown */}
+      {/* Suggestions dropdown */}
       {showDropdown && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
@@ -223,9 +204,7 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-g-text truncate">
-                  {game.title}
-                </p>
+                <p className="text-sm font-medium text-g-text truncate">{game.title}</p>
                 <p className="text-xs text-g-muted">{game.genre}</p>
               </div>
               {game.averageRating > 0 && (
@@ -236,11 +215,10 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
             </Link>
           ))}
 
-          {/* View all results */}
           <button
             onClick={() => submitSearch(query)}
-            className="w-full px-4 py-3 text-sm text-g-accent hover:bg-g-border/50
-                       transition-colors border-t border-g-border text-center"
+            className="w-full px-4 py-3 text-sm text-purple-400 hover:bg-g-border/50
+                       border-t border-g-border text-center"
           >
             View all results for &quot;{query}&quot;
           </button>
@@ -248,13 +226,13 @@ export default function SearchBar({ defaultValue = "" }: SearchBarProps) {
       )}
 
       {/* No results */}
-      {showDropdown && suggestions.length === 0 && !loading && debouncedQuery.length >= 2 && (
+      {showDropdown && suggestions.length === 0 && !loading && query.length >= 2 && (
         <div
           ref={dropdownRef}
           className="absolute z-50 top-full mt-2 w-full bg-g-card border border-g-border
                      rounded-xl shadow-2xl p-4 text-center text-g-muted text-sm"
         >
-          No games found for &quot;{debouncedQuery}&quot;
+          No games found for &quot;{query}&quot;
         </div>
       )}
     </div>
