@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gameslib — Free PC Games Download",
+    title: "Gameslib — Free PC Games to Download",
     description: "Download free PC games with direct links and installation guides.",
     images: ["/og-image.jpg"],
   },
@@ -57,6 +57,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             strategy="afterInteractive"
             crossOrigin="anonymous"
           />
+          <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-M2RMM9LYC6"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-M2RMM9LYC6');
+          `}
+        </Script>
         </Providers>
       </body>
     </html>
