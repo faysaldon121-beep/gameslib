@@ -198,7 +198,6 @@ export default function SearchBar({ defaultValue = "" }: { defaultValue?: string
                 <img
                   src={game.coverImage}
                   alt={game.title}
-                  fill
                   className="object-cover"
                   sizes="48px"
                 />
