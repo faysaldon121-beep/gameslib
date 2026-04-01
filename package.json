@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
    "postinstall": "node scripts/postinstall.mjs",
-    "rebuild-index": "tsx scripts/rebuild-search-index.ts",
+    "rebuild-index": "tsx scripts/rebuild-search-index.ts"
   },
   "dependencies": {
     "next": "14.2.5",
