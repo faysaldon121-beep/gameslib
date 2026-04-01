@@ -20,6 +20,7 @@ interface GameCardProps {
 
 export default function GameCard({ game }: GameCardProps) {
   return (
+    <>
     <Link href={`/games/${game.slug}`} className="card overflow-hidden group block">
       <div className="relative aspect-video overflow-hidden">
         <img 
@@ -48,5 +49,6 @@ export default function GameCard({ game }: GameCardProps) {
         </div>
       </div>
     </Link>
+    </>
   );
 }
