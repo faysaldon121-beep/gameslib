@@ -14,7 +14,7 @@ export default function ImageCarousel({ images, title, priority = false }: { ima
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {images.map((src, index) => (
             <button key={src + index} onClick={() => setActive(index)} className={`relative aspect-video overflow-hidden rounded-lg border ${index === active ? "border-g-purple" : "border-g-border"}`}>
-              <Image src={src} alt={`${title} thumbnail ${index + 1}`} fill className="object-cover" />
+              <Image src={"/api/image-proxy?url="+src} alt={`${title} thumbnail ${index + 1}`} fill className="object-cover" />
             </button>
           ))}
         </div>
