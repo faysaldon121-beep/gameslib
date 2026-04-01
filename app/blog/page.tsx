@@ -8,6 +8,9 @@ import BlogCategories from '@/components/blog/BlogCategories';
 import Pagination from '@/components/ui/Pagination';
 import { CalendarDaysIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/outline';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: 'Gaming Blog | Latest Gaming News, Reviews & Tutorials | Gameslib',
   description: 'Stay updated with the latest gaming news, in-depth game reviews, tutorials, and industry insights. Your ultimate source for gaming content.',
