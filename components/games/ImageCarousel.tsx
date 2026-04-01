@@ -8,7 +8,7 @@ export default function ImageCarousel({ images, title, priority = false }: { ima
     <div className="space-y-3">
       <div className="relative aspect-video overflow-hidden rounded-2xl border border-g-border bg-g-card">
         <img
-          src={"/api/image-proxy?url=" + encodeURIComponent(images[active])}
+          src={images[active]}
           alt={`${title} screenshot ${active + 1}`}
           className="absolute inset-0 w-full h-full object-cover"
           // priority is not supported on img, but you can add loading="eager" if needed
