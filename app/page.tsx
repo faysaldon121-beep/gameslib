@@ -21,6 +21,7 @@ async function getData() {
 
 async function getTopGames(page = 1) {
   await connectDB();
+  const PAGE_SIZE = 18;
   const skip = (page - 1) * PAGE_SIZE;
 
   const [games, total] = await Promise.all([
