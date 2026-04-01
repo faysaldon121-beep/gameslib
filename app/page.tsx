@@ -41,7 +41,7 @@ async function getTopGames(page = 1) {
 
 export default async function HomePage() {
   let { sponsors, totalGames } = await getData();
-  let featuredGames = await getTopGames();
+  let featuredGames = (await getTopGames()).games;
   
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.net";
   const websiteSchema = {
