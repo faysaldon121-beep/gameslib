@@ -18,7 +18,7 @@ export default function ImageCarousel({ images, title, priority = false }: { ima
             </button>
           ))}
         </div>
-    </div>
       )}
+    </div>
   );
 }
