@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Game from "@/models/Game";
-import Blog from "@/models/Blog";
+import Blog from "@/models/BlogPost";
 import Topic from "@/models/Topic";
 
 export async function GET(request) {
