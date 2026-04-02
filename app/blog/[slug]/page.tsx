@@ -9,6 +9,7 @@ import ShareButtons from '@/components/blog/ShareButtons';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogStructuredData from '@/components/blog/BlogStructuredData';
 import { CalendarDaysIcon, ClockIcon, EyeIcon, UserIcon } from '@heroicons/react/24/outline';
+import { marked } from 'marked'; // <-- 1. IMPORT MARKED
 
 interface Props {
   params: { slug: string };
@@ -72,7 +73,7 @@ async function getBlogPost(slug: string): Promise<{
     // Get related posts
     const relatedPosts = await BlogPost.find({
       _id: { $ne: post._id },
-      $or: [
+      $or:[
         { category: post.category },
         { tags: { $in: post.tags } }
       ],
@@ -123,7 +124,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : undefined,
       authors: [post.author.name],
       tags: post.tags,
-      images: [
+      images:[
         {
           url: post.featuredImage,
           width: 1200,
@@ -154,6 +155,9 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const { post, relatedPosts } = data!;
+
+  // 2. PARSE MARKDOWN TO HTML
+  const htmlContent = await marked.parse(post.content);
 
   return (
     <>
@@ -228,6 +232,7 @@ export default async function BlogPostPage({ params }: Props) {
             <div className="flex flex-col lg:flex-row gap-12">
               {/* Main Content */}
               <main className="lg:w-3/4">
+                {/* 3. INJECT THE PARSED HTML */}
                 <div 
                   className="prose prose-lg prose-invert max-w-none
                     prose-headings:text-g-text 
@@ -239,7 +244,7 @@ export default async function BlogPostPage({ params }: Props) {
                     prose-blockquote:border-l-purple-500 prose-blockquote:text-g-muted
                     prose-img:rounded-lg prose-img:shadow-lg
                     prose-hr:border-g-border"
-                  dangerouslySetInnerHTML={{ __html: post.content }}
+                  dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
 
                 {/* Author Info */}
