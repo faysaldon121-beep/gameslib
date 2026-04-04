@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import Blog from "@/models/BlogPost";
 
 export default async function sitemap() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://gameslib.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app";
 
   try {
     await connectDB();
