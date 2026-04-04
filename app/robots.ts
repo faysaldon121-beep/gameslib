@@ -1,13 +1,29 @@
-import { MetadataRoute } from "next";
+export default function robots() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://gameslib.vercel.app";
 
-export default function robots(): MetadataRoute.Robots {
-  const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.net";
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: ["/admin/", "/api/", "/games?*page=", "/*?*sort=", "/_next/"] },
-      { userAgent: ["GPTBot", "Claude-Web", "CCBot", "PerplexityBot"], disallow: "/" },
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: [
+          "/api/",
+          "/admin/",
+          "/dashboard/",
+          "/profile/edit",
+          "/_next/",
+          "/private/",
+        ],
+      },
+      {
+        userAgent: "Googlebot",
+        allow: "/",
+        disallow: ["/api/", "/admin/", "/dashboard/"],
+      },
     ],
-    sitemap: `${BASE}/sitemap.xml`,
-    host: BASE,
+    sitemap: [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/blogs/sitemap.xml`,
+    ],
   };
 }
