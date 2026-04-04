@@ -1,4 +1,4 @@
-import { connectDB } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
 import Blog from "@/models/BlogPost";
 
 export default async function sitemap() {
