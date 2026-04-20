@@ -18,7 +18,7 @@ export default async function sitemap() {
 
     // Generate blog post URLs
     const blogUrls = blogs.map((blog) => ({
-      url: `${baseUrl}/blogs/${blog.slug || blog._id}`,
+      url: `${baseUrl}/blog/${blog.slug || blog._id}`,
       lastModified: blog.updatedAt || blog.createdAt || new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
