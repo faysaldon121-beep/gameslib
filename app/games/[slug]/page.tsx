@@ -63,7 +63,7 @@ async function getGame(slug: string) {
   // Ensure defaults
   return {
     ...game,
-    requirements: game.requirements || DEFAULT_REQUIREMENTS,
+    requirements: DEFAULT_REQUIREMENTS,
     installationGuide: game.installationGuide?.length > 0 
       ? game.installationGuide 
       : DEFAULT_INSTALL_GUIDE,
