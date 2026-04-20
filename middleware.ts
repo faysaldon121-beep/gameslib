@@ -1,15 +1,31 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+function isAdminAuthenticated(request: NextRequest) {
+  const token = request.cookies.get("admin_token")?.value;
+  return !!token && token === process.env.ADMIN_TOKEN_SECRET;
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // --- Admin authentication ---
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const token = request.cookies.get('admin_token')?.value;
-    if (!token || token !== process.env.ADMIN_TOKEN_SECRET) {
-      const url = new URL('/admin/login', request.url);
-      url.searchParams.set('from', pathname);
+  // Allow admin login page + login api
+  const isAdminLoginPage = pathname.startsWith("/admin/login");
+  const isAdminLoginApi = pathname.startsWith("/api/admin/login");
+
+  const isAdminArea =
+    pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+
+  if (isAdminArea && !isAdminLoginPage && !isAdminLoginApi) {
+    if (!isAdminAuthenticated(request)) {
+      // For API requests: return 401 JSON
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      // For pages: redirect to /admin/login
+      const url = new URL("/admin/login", request.url);
+      url.searchParams.set("from", pathname);
       return NextResponse.redirect(url);
     }
   }
@@ -18,8 +34,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // Only run middleware on Admin routes now
-    '/admin/:path*',
-  ],
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
