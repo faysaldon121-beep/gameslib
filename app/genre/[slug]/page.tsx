@@ -1,278 +1,207 @@
-import { Suspense } from 'react';
-import connectDB from '@/lib/mongodb';
-import Genre from '@/models/Genre';
-import Game from '@/models/Game';
-import Link from 'next/link';
-import Image from 'next/image';
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Breadcrumbs from '@/components/Breadcrumbs';
+import connectDB from '@/lib/mongodb';
+import Game from '@/models/Game';
+import GameCard from '@/components/GameCard';
+import Pagination from '@/components/ui/Pagination';
 
-// Define the Genre type
-interface IGenre {
-  _id: string;
-  name: string;
-  slug: string;
-  description: string;
-  icon?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  ogImage?: string;
-  isActive?: boolean;
-  gameCount?: number;
-}
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ slug: string }>;
-  searchParams: { page?: string };
+  searchParams: Promise<{
+    page?: string;
+    sort?: string;
+  }>;
 }
 
-async function getGenreData({ genreSlug, page }: { genreSlug: string; page?: number }) {
-  await connectDB();
+const GAMES_PER_PAGE = 24;
 
-  const genre = (await Genre.findOne({ slug: genreSlug, isActive: true }).lean()) as IGenre | null;
-  if (!genre) return null;
+// Genre mapping
+const genreMap: Record<string, string> = {
+  'rpg': 'RPG',
+  'action': 'Action',
+  'adventure': 'Adventure',
+  'strategy': 'Strategy',
+  'shooter': 'Shooter',
+  'sports': 'Sports',
+  'racing': 'Racing',
+  'simulation': 'Simulation',
+  'puzzle': 'Puzzle',
+  'platformer': 'Platformer',
+  'fighting': 'Fighting',
+  'horror': 'Horror',
+  'mmorpg': 'MMORPG',
+  'moba': 'MOBA',
+  'battle-royale': 'Battle Royale',
+};
 
-  const total = await Game.countDocuments({ genre: { $regex: genre.name, $options: 'i' } });
+async function getGenreGames(genre: string, page: number = 1, sort: string = 'popular') {
+  try {
+    await connectDB();
+    
+    const skip = (page - 1) * GAMES_PER_PAGE;
+    
+    // Build sort criteria
+    let sortCriteria: any = {};
+    switch (sort) {
+      case 'newest':
+        sortCriteria = { releaseDate: -1 };
+        break;
+      case 'rating':
+        sortCriteria = { rating: -1 };
+        break;
+      case 'name':
+        sortCriteria = { title: 1 };
+        break;
+      default: // popular
+        sortCriteria = { downloads: -1, rating: -1 };
+    }
 
-  let games: any[] = [];
-  let hasMore = false;
+    const genreName = genreMap[genre];
+    if (!genreName) {
+      return null;
+    }
 
-  if (page !== undefined) {
-    const limit = 24;
-    const skip = (page - 1) * limit;
-    games = await Game.find({ genre: { $regex: genre.name, $options: 'i' } })
-      .sort({ averageRating: -1 })
-      .select('title slug coverImage genre averageRating reviewCount year size shortDescription')
-      .limit(limit)
-      .skip(skip)
-      .lean();
+    const query = {
+      genres: { $in: [genreName] },
+      isPublished: true
+    };
 
-    hasMore = skip + games.length < total;
-  }
+    const [games, totalGames] = await Promise.all([
+      Game.find(query)
+        .sort(sortCriteria)
+        .skip(skip)
+        .limit(GAMES_PER_PAGE)
+        .lean(),
+      Game.countDocuments(query)
+    ]);
 
-  const ogImage = games[0]?.coverImage || genre.ogImage;
-
-  return { genre, games, total, ogImage, page, hasMore };
-}
-
-export async function generateMetadata({ params }: Props) {
-  const { slug } = await params;
-  const data = await getGenreData({ genreSlug: slug }); // only fetch genre data, not games
-  if (!data?.genre) {
     return {
-      title: 'Genre Not Found - Gameslib',
-      description: 'Page not found. Explore our free PC games library.',
+      games: JSON.parse(JSON.stringify(games)),
+      totalGames,
+      currentPage: page,
+      totalPages: Math.ceil(totalGames / GAMES_PER_PAGE),
+      genre: genreName
+    };
+  } catch (error) {
+    console.error('Error fetching genre games:', error);
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const genreName = genreMap[slug];
+
+  if (!genreName) {
+    return {
+      title: 'Genre Not Found',
+      description: 'The requested genre could not be found.'
     };
   }
 
-  const { genre, total, ogImage } = data;
-  const keyword = `${genre.name.toLowerCase()} games`;
-  const countStr = total > 0 ? `${total.toLocaleString()}+ ` : '';
-
   return {
-    title: genre.metaTitle || `${genre.name} Games - Free PC Downloads | Gameslib`,
-    description: genre.metaDescription || `${countStr}free ${keyword} for PC. Pre-installed downloads with system requirements. Play top titles now!`,
-    keywords: `${keyword}, free PC games, ${genre.name} download, portable games`,
-    robots: { index: true, follow: true },
-    alternates: {
-      canonical: `https://gameslib.net/genre/${slug}`,
-    },
+    title: `${genreName} Games - Free Download | GameHub`,
+    description: `Browse and download the best ${genreName} games for PC. Explore our collection of ${genreName.toLowerCase()} games with direct download links.`,
+    keywords: `${genreName} games, ${genreName.toLowerCase()} PC games, download ${genreName.toLowerCase()} games, free ${genreName.toLowerCase()} games`,
     openGraph: {
-      title: genre.metaTitle || `${genre.name} Games - Gameslib`,
-      description: genre.metaDescription || `Free ${keyword} downloads. ${total} titles available.`,
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: `${genre.name} games collection`,
-        },
-      ],
-      url: `https://gameslib.net/genre/${slug}`,
-      siteName: 'Gameslib',
+      title: `${genreName} Games | GameHub`,
+      description: `Browse and download the best ${genreName} games for PC`,
       type: 'website',
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://gameslib.vercel.app'}/genre/${slug}`
     },
     twitter: {
       card: 'summary_large_image',
-      title: genre.metaTitle || `${genre.name} Games - Gameslib`,
-      description: genre.metaDescription || `Free ${keyword} downloads.`,
-      images: [ogImage],
-      site: '@gameslib', // Replace with your actual handle
-    },
+      title: `${genreName} Games | GameHub`,
+      description: `Browse and download the best ${genreName} games for PC`
+    }
   };
 }
-
-export async function generateStaticParams() {
-  await connectDB();
-  const genres = await Genre.find({ isActive: true, gameCount: { $gt: 0 } })
-    .select('slug -_id')
-    .lean<{ slug: string }[]>();
-  return genres.map((genre) => ({ slug: genre.slug }));
-}
-
-export const revalidate = 3600; // ISR
 
 export default async function GenrePage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const page = parseInt(searchParams?.page || '1', 10);
-  const data = await getGenreData({ genreSlug: slug, page });
+  const { page, sort } = await searchParams;
 
-  if (!data?.genre) notFound();
+  const currentPage = parseInt(page || '1');
+  const currentSort = sort || 'popular';
 
-  const { genre, games, total, ogImage, hasMore } = data;
+  const data = await getGenreGames(slug, currentPage, currentSort);
 
-  // Fetch related genres (top 6 by gameCount, excluding current)
-  const relatedGenres = await Genre.find({
-    isActive: true,
-    slug: { $ne: slug },
-    gameCount: { $gt: 0 },
-  })
-    .sort({ gameCount: -1 })
-    .limit(6)
-    .select('slug name gameCount -_id') // Exclude _id for clean type
-    .lean();
+  if (!data) {
+    notFound();
+  }
 
-  // Enhanced Schema
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name: `${genre.name} Games`,
-    description: genre.description,
-    mainEntity: {
-      '@type': 'ItemList',
-      name: `${genre.name} Games Collection`,
-      numberOfItems: total,
-      itemListElement: games.map((game: any, index: number) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        item: {
-          '@type': 'CreativeWork',
-          name: game.title,
-          url: `https://gameslib.net/game/${game.slug}`,
-          image: game.coverImage,
-          description: game.shortDescription,
-          genre: game.genre,
-        },
-      })),
-    },
-  };
+  const { games, totalGames, totalPages, genre } = data;
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
-      <div className="min-h-screen bg-[#0a0e27] py-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <Breadcrumbs
-            current={genre.name}
-            parents={[
-              { name: 'Genres', href: '/genres' },
-              { name: 'Home', href: '/' },
-            ]}
-          />
+    <div className="min-h-screen bg-g-bg">
+      {/* Header */}
+      <section className="bg-gradient-to-r from-purple-900 to-blue-900 py-16">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
+            {genre} Games
+          </h1>
+          <p className="text-xl text-purple-100 max-w-2xl">
+            Browse {totalGames} {genre.toLowerCase()} games available for download
+          </p>
+        </div>
+      </section>
 
-          {/* Hero Section */}
-          <div className="text-center mb-12">
-            <Image
-              src={genre.icon || '/icons/genres/default.svg'}
-              alt={`${genre.name} genre icon`}
-              width={64}
-              height={64}
-              className="mx-auto mb-4 opacity-80"
-              priority
-            />
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 capitalize">
-              {genre.name}
-            </h1>
-            <p className="text-gray-400 max-w-3xl mx-auto mb-6 leading-relaxed">
-              {genre.description}
-            </p>
-            <p className="text-sm text-gray-500 mb-8">
-              Showing {games.length} of {total.toLocaleString()} {genre.name.toLowerCase()} games • Page{' '}
-              {page}
-            </p>
-            <Link
-              href={`/genre/${slug}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium"
-            >
-              Download Top {genre.name} Games
-            </Link>
+      {/* Filters */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div className="text-g-muted">
+            Showing {games.length} of {totalGames} games
           </div>
 
-          {/* Games Grid */}
-          <Suspense
-            fallback={
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 h-96">
-                <div className="aspect-[2/3] bg-g-card rounded-lg skeleton" />
-              </div>
-            }
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <label htmlFor="sort" className="text-g-muted">
+              Sort by:
+            </label>
+            <select
+              id="sort"
+              value={currentSort}
+              onChange={(e) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('sort', e.target.value);
+                url.searchParams.set('page', '1');
+                window.location.href = url.toString();
+              }}
+              className="bg-g-secondary border border-g-border rounded px-4 py-2 text-g-text focus:outline-none focus:border-purple-500"
+            >
+              <option value="popular">Most Popular</option>
+              <option value="newest">Newest</option>
+              <option value="rating">Highest Rated</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Games Grid */}
+        {games.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-12">
               {games.map((game: any) => (
-                <Link
-                  key={game.slug}
-                  href={`/game/${game.slug}`}
-                  className="group relative block"
-                  title={`Download ${game.title} - Free ${genre.name} PC Game`}
-                >
-                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-g-card">
-                    <Image
-                      src={game.coverImage}
-                      alt={`${game.title} poster - ${genre.name} game`}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16.67vw"
-                    />
-                    <div className="absolute top-2 right-2 bg-yellow-500 px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                      {game.averageRating.toFixed(1)}★
-                    </div>
-                  </div>
-                  <div className="mt-2">
-                    <h3 className="text-sm font-medium text-white line-clamp-2">{game.title}</h3>
-                    <p className="text-xs text-gray-400 mt-1">{game.year} • {game.size}</p>
-                    <div className="flex items-center gap-1 text-xs text-yellow-400 mt-1">
-                      <span>{game.averageRating.toFixed(1)}</span>
-                      <span className="text-gray-500">({game.reviewCount} reviews)</span>
-                    </div>
-                  </div>
-                </Link>
+                <GameCard key={game._id} game={game} />
               ))}
             </div>
-          </Suspense>
 
-          {/* Pagination */}
-          {hasMore && (
-            <div className="text-center mb-8">
-              <Link
-                href={`/genre/${slug}?page=${page + 1}`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
-              >
-                Load More ({total - page * 24} more {genre.name.toLowerCase()} games)
-              </Link>
-            </div>
-          )}
-
-          {/* Related Genres */}
-          {relatedGenres.length > 0 && (
-            <section className="mt-12">
-              <h2 className="text-xl font-bold text-white mb-4">Related Genres</h2>
-              <div className="flex flex-wrap gap-3">
-                {relatedGenres.map((related: any) => (
-                  <Link
-                    key={related.slug}
-                    href={`/genre/${related.slug}`}
-                    className="px-3 py-2 bg-g-card/50 hover:bg-g-card text-gray-300 rounded-md text-sm transition-colors"
-                  >
-                    {related.name} ({related.gameCount})
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+              />
+            )}
+          </>
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-g-muted text-lg">No games found in this genre</p>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
+
+export const revalidate = 300;
