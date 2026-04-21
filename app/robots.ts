@@ -23,7 +23,7 @@ export default function robots() {
     ],
     sitemap: [
       `${baseUrl}/sitemap.xml`,
-      `${baseUrl}/blogs/sitemap.xml`,
+      `${baseUrl}/blog/sitemap.xml`,
     ],
   };
 }
