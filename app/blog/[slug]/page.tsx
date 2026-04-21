@@ -8,14 +8,14 @@ import BlogPost from '@/models/BlogPost';
 import ShareButtons from '@/components/blog/ShareButtons';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogStructuredData from '@/components/blog/BlogStructuredData';
+import { ViewTracker } from '@/lib/services/view-tracker';
 import { CalendarDaysIcon, ClockIcon, EyeIcon, UserIcon } from '@heroicons/react/24/outline';
-import { marked } from 'marked'; // <-- 1. IMPORT MARKED
+import { marked } from 'marked';
 
 interface Props {
   params: { slug: string };
 }
 
-// Explicit shape for lean documents to avoid Omit conflicts
 type BlogPostDoc = {
   _id: string;
   title: string;
@@ -49,7 +49,10 @@ type BlogPostDoc = {
   updatedAt?: Date | string;
 };
 
-async function getBlogPost(slug: string): Promise<{
+async function getBlogPost(
+  slug: string,
+  shouldIncrementView: boolean = false
+): Promise<{
   post: BlogPostDoc;
   relatedPosts: BlogPostDoc[];
 } | null> {
@@ -63,17 +66,20 @@ async function getBlogPost(slug: string): Promise<{
     
     if (!post) return null;
 
-    // Increment view count safely
-    if (post._id) {
-      await BlogPost.findByIdAndUpdate(post._id, { 
-        $inc: { views: 1 } 
-      });
+    // Only increment view count if shouldIncrementView is true
+    if (shouldIncrementView && post._id) {
+      await BlogPost.findByIdAndUpdate(
+        post._id, 
+        { $inc: { views: 1 } },
+        { timestamps: false } // Don't update updatedAt
+      );
+      post.views += 1; // Update the returned object
     }
 
     // Get related posts
     const relatedPosts = await BlogPost.find({
       _id: { $ne: post._id },
-      $or:[
+      $or: [
         { category: post.category },
         { tags: { $in: post.tags } }
       ],
@@ -94,7 +100,7 @@ async function getBlogPost(slug: string): Promise<{
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await getBlogPost(params.slug);
+  const data = await getBlogPost(params.slug, false); // Don't increment on metadata generation
   
   if (!data) {
     return {
@@ -124,7 +130,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : undefined,
       authors: [post.author.name],
       tags: post.tags,
-      images:[
+      images: [
         {
           url: post.featuredImage,
           width: 1200,
@@ -132,7 +138,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           alt: post.title
         }
       ],
-      url: `${process.env.NEXT_PUBLIC_SITE_URL||"https://gameslib.vercel.app"}/${post.slug}`
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app"}/${post.slug}`
     },
     twitter: {
       card: 'summary_large_image',
@@ -148,15 +154,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const data = await getBlogPost(params.slug);
+  const slug = params.slug;
+  
+  // Check if user has already viewed this post
+  const hasViewed = await ViewTracker.hasViewed(slug);
+  
+  // Only increment view if user hasn't viewed before
+  const data = await getBlogPost(slug, !hasViewed);
   
   if (!data) {
     notFound();
   }
 
-  const { post, relatedPosts } = data!;
+  const { post, relatedPosts } = data;
 
-  // 2. PARSE MARKDOWN TO HTML
+  // Mark as viewed for this session
+  if (!hasViewed) {
+    await ViewTracker.markAsViewed(slug);
+  }
+
+  // Parse markdown to HTML
   const htmlContent = await marked.parse(post.content);
 
   return (
@@ -232,7 +249,6 @@ export default async function BlogPostPage({ params }: Props) {
             <div className="flex flex-col lg:flex-row gap-12">
               {/* Main Content */}
               <main className="lg:w-3/4">
-                {/* 3. INJECT THE PARSED HTML */}
                 <div 
                   className="prose prose-lg prose-invert max-w-none
                     prose-headings:text-g-text 
