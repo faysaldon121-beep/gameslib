@@ -47,9 +47,32 @@ type BlogPostDoc = {
   views: number;
   isPublished: boolean;
   isFeatured: boolean;
-  publishedAt?: Date | string;
-  updatedAt?: Date | string;
+  publishedAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  createdAt?: Date | string | null;
 };
+
+// Helper function to safely convert date
+function safeDate(date: Date | string | null | undefined): Date | null {
+  if (!date) return null;
+  
+  try {
+    const d = new Date(date);
+    // Check if date is valid
+    if (isNaN(d.getTime())) {
+      return null;
+    }
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to get ISO string safely
+function safeISOString(date: Date | string | null | undefined): string | undefined {
+  const d = safeDate(date);
+  return d ? d.toISOString() : undefined;
+}
 
 async function getBlogPost(slug: string): Promise<{
   post: BlogPostDoc;
@@ -112,12 +135,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: seoTitle,
       description: seoDescription,
       type: 'article',
-      publishedTime: post.publishedAt
-        ? new Date(post.publishedAt).toISOString()
-        : undefined,
-      modifiedTime: post.updatedAt
-        ? new Date(post.updatedAt).toISOString()
-        : undefined,
+      publishedTime: safeISOString(post.publishedAt),
+      modifiedTime: safeISOString(post.updatedAt),
       authors: [post.author.name],
       tags: post.tags,
       images: [
@@ -159,6 +178,16 @@ export default async function BlogPostPage({ params }: Props) {
 
   // Parse markdown to HTML
   const htmlContent = await marked.parse(post.content);
+
+  // Safely format the published date
+  const publishedDate = safeDate(post.publishedAt);
+  const formattedDate = publishedDate 
+    ? publishedDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : 'Recently';
 
   return (
     <>
@@ -207,11 +236,7 @@ export default async function BlogPostPage({ params }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-5 h-5" />
-                      <span>
-                        {post.publishedAt
-                          ? new Date(post.publishedAt).toLocaleDateString()
-                          : 'Draft'}
-                      </span>
+                      <span>{formattedDate}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ClockIcon className="w-5 h-5" />
