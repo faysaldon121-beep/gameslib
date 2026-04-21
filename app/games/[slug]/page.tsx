@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import connectDB from "@/lib/mongodb";
 import Game from "@/models/Game";
+import type { IGame } from "@/models/Game";
 import Review from "@/models/Review";
 import ImageCarousel from "@/components/games/ImageCarousel";
 import SystemRequirements from "@/components/games/SystemRequirements";
@@ -20,11 +21,40 @@ import {
   FaDownload, 
   FaWindows,
   FaUsers,
-  FaClock,
   FaCheckCircle,
   FaShieldAlt,
   FaBolt
 } from "react-icons/fa";
+
+// Extended game type with all fields we need
+type GameData = IGame & {
+  requirements: {
+    minimum: {
+      os: string;
+      cpu: string;
+      ram: string;
+      gpu: string;
+      storage: string;
+      directx: string;
+    };
+    recommended: {
+      os: string;
+      cpu: string;
+      ram: string;
+      gpu: string;
+      storage: string;
+      directx: string;
+    };
+  };
+  installationGuide: string[];
+  images: string[];
+  tags: string[];
+  platforms: string[];
+  fileSize: string;
+  version: string;
+  developer: string;
+  publisher: string;
+};
 
 // Default placeholder data
 const DEFAULT_REQUIREMENTS = {
@@ -55,26 +85,31 @@ const DEFAULT_INSTALL_GUIDE = [
   "Enjoy playing!"
 ];
 
-async function getGame(slug: string) {
+async function getGame(slug: string): Promise<GameData> {
   await connectDB();
   const game = await Game.findOne({ slug }).lean();
   if (!game) notFound();
   
-  // Ensure defaults
+  // Cast to any first, then build the properly typed object
+  const rawGame = game as any;
+  
+  // Ensure defaults with proper typing
   return {
-    ...game,
-    requirements: DEFAULT_REQUIREMENTS,
-    installationGuide: game.installationGuide?.length > 0 
-      ? game.installationGuide 
+    ...rawGame,
+    requirements: rawGame.requirements || DEFAULT_REQUIREMENTS,
+    installationGuide: rawGame.installationGuide?.length > 0 
+      ? rawGame.installationGuide 
       : DEFAULT_INSTALL_GUIDE,
-    images: game.images?.length > 0 ? game.images : (game.coverImage ? [game.coverImage] : []),
-    tags: game.tags || ['Action', 'Adventure', 'Open World'],
-    platforms: game.platforms || ['Windows'],
-    fileSize: game.fileSize || 'TBA',
-    version: game.version || '1.0',
-    developer: game.developer || 'Unknown Developer',
-    publisher: game.publisher || 'Unknown Publisher',
-  } as any;
+    images: rawGame.images?.length > 0 
+      ? rawGame.images 
+      : (rawGame.coverImage ? [rawGame.coverImage] : []),
+    tags: rawGame.tags || ['Action', 'Adventure', 'Open World'],
+    platforms: rawGame.platforms || ['Windows'],
+    fileSize: rawGame.fileSize || 'TBA',
+    version: rawGame.version || '1.0',
+    developer: rawGame.developer || 'Unknown Developer',
+    publisher: rawGame.publisher || 'Unknown Publisher',
+  } as GameData;
 }
 
 async function getReviews(gameSlug: string) {
@@ -88,7 +123,7 @@ async function getReviews(gameSlug: string) {
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const game = await getGame(params.slug);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
-  const desc = game.shortDescription || String(game.description).slice(0, 160) || `Download ${game.title} for free. Full version PC game with direct download links.`;
+  const desc = game.shortDescription || String(game.description || '').slice(0, 160) || `Download ${game.title} for free. Full version PC game with direct download links.`;
 
   return {
     title: `Download ${game.title} - Free PC Game | GamesLib`,
@@ -125,9 +160,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-function buildGameSchema(game: any, reviews: any[]) {
+function buildGameSchema(game: GameData, reviews: any[]) {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gameslib.vercel.app";
   const safeISOString = (date: any) => {
+    if (!date) return new Date().toISOString();
     const d = new Date(date);
     return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
   };
@@ -146,7 +182,7 @@ function buildGameSchema(game: any, reviews: any[]) {
     datePublished: safeISOString(game.releaseDate),
     author: { "@type": "Organization", name: game.developer },
     publisher: { "@type": "Organization", name: game.publisher },
-    ...(game.reviewCount > 0 && {
+    ...(game.reviewCount && game.reviewCount > 0 && {
       aggregateRating: {
         "@type": "AggregateRating",
         ratingValue: Number(game.averageRating || 4.5).toFixed(1),
