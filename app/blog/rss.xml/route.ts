@@ -11,7 +11,7 @@ export async function GET() {
       .limit(20)
       .lean();
 
-    const siteUrl = 'https://yourdomain.com';
+    const siteUrl = 'https://gameslib.vercel.app';
     
     const rssItems = posts.map((post: any) => `
       <item>
