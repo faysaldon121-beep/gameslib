@@ -1,4 +1,3 @@
-// app/blog/[slug]/page.tsx
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
@@ -8,12 +7,15 @@ import BlogPost from '@/models/BlogPost';
 import ShareButtons from '@/components/blog/ShareButtons';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogStructuredData from '@/components/blog/BlogStructuredData';
-import { ViewTracker } from '@/lib/services/view-tracker';
+import ViewTracker from '@/components/blog/ViewTracker';
+import { hasViewedBlog } from '@/lib/actions/view-tracker';
 import { CalendarDaysIcon, ClockIcon, EyeIcon, UserIcon } from '@heroicons/react/24/outline';
 import { marked } from 'marked';
 
+export const dynamic = 'force-dynamic';
+
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 type BlogPostDoc = {
@@ -49,10 +51,7 @@ type BlogPostDoc = {
   updatedAt?: Date | string;
 };
 
-async function getBlogPost(
-  slug: string,
-  shouldIncrementView: boolean = false
-): Promise<{
+async function getBlogPost(slug: string): Promise<{
   post: BlogPostDoc;
   relatedPosts: BlogPostDoc[];
 } | null> {
@@ -65,16 +64,6 @@ async function getBlogPost(
     }).lean<BlogPostDoc | null>();
     
     if (!post) return null;
-
-    // Only increment view count if shouldIncrementView is true
-    if (shouldIncrementView && post._id) {
-      await BlogPost.findByIdAndUpdate(
-        post._id, 
-        { $inc: { views: 1 } },
-        { timestamps: false } // Don't update updatedAt
-      );
-      post.views += 1; // Update the returned object
-    }
 
     // Get related posts
     const relatedPosts = await BlogPost.find({
@@ -90,8 +79,8 @@ async function getBlogPost(
     .lean<BlogPostDoc[]>();
 
     return {
-      post,
-      relatedPosts
+      post: JSON.parse(JSON.stringify(post)),
+      relatedPosts: JSON.parse(JSON.stringify(relatedPosts))
     };
   } catch (error) {
     console.error('Error fetching blog post:', error);
@@ -100,7 +89,8 @@ async function getBlogPost(
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await getBlogPost(params.slug, false); // Don't increment on metadata generation
+  const { slug } = await params;
+  const data = await getBlogPost(slug);
   
   if (!data) {
     return {
@@ -138,7 +128,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           alt: post.title
         }
       ],
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app"}/${post.slug}`
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app"}/blog/${post.slug}`
     },
     twitter: {
       card: 'summary_large_image',
@@ -148,19 +138,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       creator: post.author.social?.twitter
     },
     alternates: {
-      canonical: post.seo?.canonicalUrl || `https://yourdomain.com/blog/${post.slug}`
+      canonical: post.seo?.canonicalUrl || `${process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app"}/blog/${post.slug}`
     }
   };
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const slug = params.slug;
+  const { slug } = await params;
   
-  // Check if user has already viewed this post
-  const hasViewed = await ViewTracker.hasViewed(slug);
-  
-  // Only increment view if user hasn't viewed before
-  const data = await getBlogPost(slug, !hasViewed);
+  const data = await getBlogPost(slug);
   
   if (!data) {
     notFound();
@@ -168,10 +154,8 @@ export default async function BlogPostPage({ params }: Props) {
 
   const { post, relatedPosts } = data;
 
-  // Mark as viewed for this session
-  if (!hasViewed) {
-    await ViewTracker.markAsViewed(slug);
-  }
+  // Check if user has viewed this post (server-side)
+  const hasViewed = await hasViewedBlog(slug);
 
   // Parse markdown to HTML
   const htmlContent = await marked.parse(post.content);
@@ -179,6 +163,7 @@ export default async function BlogPostPage({ params }: Props) {
   return (
     <>
       <BlogStructuredData post={post} />
+      <ViewTracker slug={slug} hasViewed={hasViewed} />
       
       <article className="min-h-screen bg-g-bg">
         {/* Hero Section */}
@@ -225,7 +210,7 @@ export default async function BlogPostPage({ params }: Props) {
                       <span>
                         {post.publishedAt
                           ? new Date(post.publishedAt).toLocaleDateString()
-                          : ''}
+                          : 'Draft'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -234,7 +219,7 @@ export default async function BlogPostPage({ params }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                       <EyeIcon className="w-5 h-5" />
-                      <span>{post.views.toLocaleString()} views</span>
+                      <span>{(post.views || 0).toLocaleString()} views</span>
                     </div>
                   </div>
                 </div>
@@ -313,7 +298,7 @@ export default async function BlogPostPage({ params }: Props) {
                 {/* Share Buttons */}
                 <ShareButtons 
                   title={post.title}
-                  url={`https://yourdomain.com/blog/${post.slug}`}
+                  url={`${process.env.NEXT_PUBLIC_SITE_URL || "https://gameslib.vercel.app"}/blog/${post.slug}`}
                 />
               </main>
 
@@ -355,4 +340,4 @@ export default async function BlogPostPage({ params }: Props) {
   );
 }
 
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 300;
