@@ -1,0 +1,1 @@
+import news from './news'; export const schemas = [news];

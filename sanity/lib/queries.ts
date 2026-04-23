@@ -1,0 +1,13 @@
+import { groq } from 'next-sanity';
+export const newsFields = groq`_id, _type, _createdAt, _updatedAt, title, slug, excerpt, "featuredImage": featuredImage.asset->url, category, platforms, tags, author { name, "avatar": avatar.asset->url, bio, social }, readingTime, views, shares, isBreaking, isFeatured, isTrending, isPublished, publishedAt`;
+export const paginatedNewsQuery = groq`{ "news": *[_type == "news" && isPublished == true] | order(publishedAt desc)[$start...$end] { ${newsFields} }, "total": count(*[_type == "news" && isPublished == true]) }`;
+export const trendingNewsQuery = groq`*[_type == "news" && isPublished == true] | order(shares.total desc, views desc) [0...$limit] { ${newsFields} }`;
+export const breakingNewsQuery = groq`*[_type == "news" && isPublished == true && isBreaking == true] | order(publishedAt desc) [0...$limit] { ${newsFields} }`;
+export const featuredNewsQuery = groq`*[_type == "news" && isPublished == true && isFeatured == true] | order(publishedAt desc) [0] { ${newsFields} }`;
+export const newsBySlugQuery = groq`*[_type == "news" && slug.current == $slug && isPublished == true][0] { ${newsFields}, content[] { ..., _type == "image" => { ..., "url": asset->url } }, seo, videoEmbed, sourceUrl }`;
+export const newsByCategoryQuery = groq`{ "news": *[_type == "news" && isPublished == true && category == $category] | order(publishedAt desc)[$start...$end] { ${newsFields} }, "total": count(*[_type == "news" && isPublished == true && category == $category]) }`;
+export const newsByPlatformQuery = groq`{ "news": *[_type == "news" && isPublished == true && $platform in platforms] | order(publishedAt desc)[$start...$end] { ${newsFields} }, "total": count(*[_type == "news" && isPublished == true && $platform in platforms]) }`;
+export const searchNewsQuery = groq`{ "news": *[_type == "news" && isPublished == true && (title match $query || excerpt match $query || $query in tags[])] | order(publishedAt desc)[$start...$end] { ${newsFields} }, "total": count(*[_type == "news" && isPublished == true && (title match $query || excerpt match $query || $query in tags[])]) }`;
+export const relatedNewsQuery = groq`*[_type == "news" && isPublished == true && _id != $newsId && category == $category] | order(publishedAt desc) [0...$limit] { ${newsFields} }`;
+export const categoriesWithCountQuery = groq`*[_type == "news" && isPublished == true] | { "category": category, "count": count(*[_type == "news" && isPublished == true && category == ^.category]) } | order(count desc) | unique()`;
+export const popularTagsQuery = groq`array::unique(*[_type == "news" && isPublished == true].tags[]) | order(@) |[0..9]`;
