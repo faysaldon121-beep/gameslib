@@ -1,11 +1,12 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import connectDB from '@/lib/mongodb';
-import Game from '@/models/Game';
 import GameCard from '@/components/GameCard';
 import Pagination from '@/components/ui/Pagination';
+import { client } from '@/sanity/lib/client';
+import { groq } from 'next-sanity';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -17,7 +18,6 @@ interface Props {
 
 const GAMES_PER_PAGE = 24;
 
-// Genre mapping
 const genreMap: Record<string, string> = {
   'rpg': 'RPG',
   'action': 'Action',
@@ -37,52 +37,45 @@ const genreMap: Record<string, string> = {
 };
 
 async function getGenreGames(genre: string, page: number = 1, sort: string = 'popular') {
+  const genreName = genreMap[genre];
+  if (!genreName) return null;
+
+  const start = (page - 1) * GAMES_PER_PAGE;
+  const end = start + GAMES_PER_PAGE;
+
+  let sortCriteria = '';
+  switch (sort) {
+    case 'newest': sortCriteria = 'releaseDate desc'; break;
+    case 'rating': sortCriteria = 'rating desc'; break;
+    case 'name': sortCriteria = 'title asc'; break;
+    default: sortCriteria = 'downloads desc';
+  }
+
   try {
-    await connectDB();
-    
-    const skip = (page - 1) * GAMES_PER_PAGE;
-    
-    // Build sort criteria
-    let sortCriteria: any = {};
-    switch (sort) {
-      case 'newest':
-        sortCriteria = { releaseDate: -1 };
-        break;
-      case 'rating':
-        sortCriteria = { rating: -1 };
-        break;
-      case 'name':
-        sortCriteria = { title: 1 };
-        break;
-      default: // popular
-        sortCriteria = { downloads: -1, rating: -1 };
-    }
+    const query = groq`{
+      "games": *[_type == "game" && $genre in genres && isPublished == true] | order(${sortCriteria}) [$start...$end] {
+        _id,
+        title,
+        "slug": slug.current,
+        "coverImage": coverImage.asset->url,
+        rating,
+        downloads,
+        releaseDate,
+        genres,
+        platforms,
+        size
+      },
+      "total": count(*[_type == "game" && $genre in genres && isPublished == true])
+    }`;
 
-    const genreName = genreMap[genre];
-    if (!genreName) {
-      return null;
-    }
-
-    const query = {
-      genres: { $in: [genreName] },
-      isPublished: true
-    };
-
-    const [games, totalGames] = await Promise.all([
-      Game.find(query)
-        .sort(sortCriteria)
-        .skip(skip)
-        .limit(GAMES_PER_PAGE)
-        .lean(),
-      Game.countDocuments(query)
-    ]);
+    const result = await client.fetch(query, { genre: genreName, start, end });
 
     return {
-      games: JSON.parse(JSON.stringify(games)),
-      totalGames,
+      games: result.games || [],
+      totalGames: result.total || 0,
       currentPage: page,
-      totalPages: Math.ceil(totalGames / GAMES_PER_PAGE),
-      genre: genreName
+      totalPages: Math.ceil((result.total || 0) / GAMES_PER_PAGE),
+      genre: genreName,
     };
   } catch (error) {
     console.error('Error fetching genre games:', error);
@@ -95,27 +88,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const genreName = genreMap[slug];
 
   if (!genreName) {
-    return {
-      title: 'Genre Not Found',
-      description: 'The requested genre could not be found.'
-    };
+    return { title: 'Genre Not Found' };
   }
 
   return {
-    title: `${genreName} Games - Free Download | GameHub`,
-    description: `Browse and download the best ${genreName} games for PC. Explore our collection of ${genreName.toLowerCase()} games with direct download links.`,
-    keywords: `${genreName} games, ${genreName.toLowerCase()} PC games, download ${genreName.toLowerCase()} games, free ${genreName.toLowerCase()} games`,
+    title: `${genreName} Games - Free Download | GamesLib`,
+    description: `Browse and download the best ${genreName} games for PC.`,
     openGraph: {
-      title: `${genreName} Games | GameHub`,
+      title: `${genreName} Games | GamesLib`,
       description: `Browse and download the best ${genreName} games for PC`,
-      type: 'website',
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://gameslib.vercel.app'}/genre/${slug}`
     },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${genreName} Games | GameHub`,
-      description: `Browse and download the best ${genreName} games for PC`
-    }
   };
 }
 
@@ -128,80 +110,49 @@ export default async function GenrePage({ params, searchParams }: Props) {
 
   const data = await getGenreGames(slug, currentPage, currentSort);
 
-  if (!data) {
-    notFound();
-  }
+  if (!data) notFound();
 
   const { games, totalGames, totalPages, genre } = data;
 
   return (
     <div className="min-h-screen bg-g-bg">
-      {/* Header */}
       <section className="bg-gradient-to-r from-purple-900 to-blue-900 py-16">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            {genre} Games
-          </h1>
-          <p className="text-xl text-purple-100 max-w-2xl">
-            Browse {totalGames} {genre.toLowerCase()} games available for download
-          </p>
+          <h1 className="text-5xl font-bold text-white mb-4">{genre} Games</h1>
+          <p className="text-xl text-purple-100">Showing {totalGames} games</p>
         </div>
       </section>
 
-      {/* Filters */}
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div className="text-g-muted">
-            Showing {games.length} of {totalGames} games
-          </div>
-
-          <div className="flex items-center gap-4">
-            <label htmlFor="sort" className="text-g-muted">
-              Sort by:
-            </label>
-            <select
-              id="sort"
-              value={currentSort}
-              onChange={(e) => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('sort', e.target.value);
-                url.searchParams.set('page', '1');
-                window.location.href = url.toString();
-              }}
-              className="bg-g-secondary border border-g-border rounded px-4 py-2 text-g-text focus:outline-none focus:border-purple-500"
-            >
-              <option value="popular">Most Popular</option>
-              <option value="newest">Newest</option>
-              <option value="rating">Highest Rated</option>
-              <option value="name">Name (A-Z)</option>
-            </select>
-          </div>
+        <div className="flex justify-between items-center mb-8">
+          <div>Showing {games.length} of {totalGames} games</div>
+          <select
+            defaultValue={currentSort}
+            onChange={(e) => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('sort', e.target.value);
+              url.searchParams.set('page', '1');
+              window.location.href = url.toString();
+            }}
+            className="bg-g-secondary border border-g-border rounded px-4 py-2 text-white"
+          >
+            <option value="popular">Most Popular</option>
+            <option value="newest">Newest</option>
+            <option value="rating">Highest Rated</option>
+            <option value="name">Name (A-Z)</option>
+          </select>
         </div>
 
-        {/* Games Grid */}
-        {games.length > 0 ? (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-12">
-              {games.map((game: any) => (
-                <GameCard key={game._id} game={game} />
-              ))}
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-12">
+          {games.map((game: any) => (
+            <GameCard key={game._id} game={game} />
+          ))}
+        </div>
 
-            {totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-              />
-            )}
-          </>
-        ) : (
-          <div className="text-center py-20">
-            <p className="text-g-muted text-lg">No games found in this genre</p>
-          </div>
+        {totalPages > 1 && (
+          <Pagination currentPage={currentPage} totalPages={totalPages} />
         )}
       </div>
     </div>
   );
 }
-
-export const revalidate = 300;
