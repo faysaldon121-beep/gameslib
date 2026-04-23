@@ -20,7 +20,6 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
    verification: {
-     'impact-site-verification': '87a76029-4ab8-49dc-b49e-a8a20eb69d10',
     google: 'Oxz_vV17FHU_g0ColbVp2jZ2ANwgg1udZlvwTRMrqgI',
   },
   description: "Download free PC games with direct links, system requirements, and installation guides. Browse 500+ games across all genres.",
