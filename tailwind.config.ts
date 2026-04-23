@@ -20,7 +20,7 @@ const config: Config = {
         'g-muted': '#64748b',
         
         // Alias for consistency
-        'g-bg': '#07070f',
+
         'g-secondary': '#0f0f1a',
       },
       fontFamily: {
