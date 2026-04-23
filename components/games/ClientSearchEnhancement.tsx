@@ -1,181 +1,235 @@
-// components/games/ClientSearchEnhancement.tsx
-"use client";
-import { useState, useEffect, useMemo } from 'react';
+'use client';
+
+import { useState, useCallback, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import GameGrid from '@/components/games/GameGrid';
+import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import Pagination from '@/components/ui/Pagination';
-import { optimizedGameSearch } from '@/lib/clientSearchOptimized';
 
 interface ClientSearchEnhancementProps {
-  initialGames: any[];
-  allGames: any[];
-  searchParams: Record<string, string | string[] | undefined>;
-  totalPages: number;
+  initialResults: any[];
+  totalResults: number;
   currentPage: number;
-  indexReady: boolean;
+  totalPages: number;
 }
 
-const PAGE_SIZE = 18;
-
 export default function ClientSearchEnhancement({
-  initialGames,
-  allGames,
-  searchParams,
-  totalPages: initialTotalPages,
-  currentPage: initialCurrentPage,
-  indexReady
+  initialResults,
+  totalResults,
+  currentPage,
+  totalPages,
 }: ClientSearchEnhancementProps) {
   const router = useRouter();
-  const urlSearchParams = useSearchParams();
-  
-  const [searchResults, setSearchResults] = useState(initialGames);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchTime, setSearchTime] = useState(0);
-  const [clientReady, setClientReady] = useState(false);
-  const [currentPage, setCurrentPage] = useState(initialCurrentPage);
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  // Extract search parameters
-  const query = typeof searchParams.q === "string" ? searchParams.q : "";
-  const genre = typeof searchParams.genre === "string" ? searchParams.genre : "";
-  const platform = typeof searchParams.platform === "string" ? searchParams.platform : "";
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [selectedGenre, setSelectedGenre] = useState(searchParams.get('genre') || '');
+  const [selectedPlatform, setSelectedPlatform] = useState(searchParams.get('platform') || '');
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'popular');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Initialize client search when index is ready
-  useEffect(() => {
-    if (indexReady && allGames.length > 0 && !clientReady) {
-      const initializeSearch = async () => {
-        try {
-          // Initialize the optimized search engine with our data
-          await optimizedGameSearch.initializeWithData(allGames);
-          setClientReady(true);
-          console.log('✅ Client search enhancement ready');
-        } catch (error) {
-          console.error('❌ Failed to initialize client search:', error);
+  const genres = [
+    'All',
+    'Action',
+    'Adventure',
+    'RPG',
+    'Strategy',
+    'Shooter',
+    'Sports',
+    'Racing',
+    'Simulation',
+    'Puzzle',
+    'Horror',
+  ];
+
+  const platforms = ['All', 'PC', 'PS5', 'Xbox', 'Switch', 'Mobile'];
+
+  const sortOptions = [
+    { value: 'popular', label: 'Most Popular' },
+    { value: 'newest', label: 'Newest' },
+    { value: 'rating', label: 'Highest Rated' },
+    { value: 'name', label: 'Name (A-Z)' },
+  ];
+
+  const updateURL = useCallback(
+    (updates: Record<string, string>) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value !== 'All' && value !== '') {
+          params.set(key, value);
+        } else {
+          params.delete(key);
         }
-      };
+      });
 
-      initializeSearch();
-    }
-  }, [indexReady, allGames, clientReady]);
-
-  // Perform search when parameters change
-  useEffect(() => {
-    if (!clientReady) {
-      // Use initial server results
-      setSearchResults(initialGames);
-      return;
-    }
-
-    const performSearch = async () => {
-      setIsSearching(true);
-      
-      try {
-        const result = await optimizedGameSearch.search(query, {
-          genre: genre || undefined,
-          platform: platform || undefined,
-          limit: 1000, // Get all results for client pagination
-          sortBy: query ? 'relevance' : 'rating'
-        });
-
-        setSearchResults(result.results);
-        setSearchTime(result.searchTime);
-        
-        // Reset page if search changed
-        if (query !== (urlSearchParams.get('q') || '')) {
-          setCurrentPage(1);
-        }
-
-      } catch (error) {
-        console.error('Search error:', error);
-        // Fallback to initial results
-        setSearchResults(initialGames);
-      } finally {
-        setIsSearching(false);
+      // Reset to page 1 when filters change
+      if ('page' in updates === false) {
+        params.set('page', '1');
       }
-    };
 
-    performSearch();
-  }, [query, genre, platform, clientReady, initialGames, urlSearchParams]);
+      startTransition(() => {
+        router.push(`/games?${params.toString()}`);
+      });
+    },
+    [router, searchParams]
+  );
 
-  // Paginate results
-  const paginatedResults = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    const endIndex = startIndex + PAGE_SIZE;
-    return searchResults.slice(startIndex, endIndex);
-  }, [searchResults, currentPage]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateURL({ q: searchQuery });
+  };
 
-  const totalPages = Math.ceil(searchResults.length / PAGE_SIZE);
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
+    updateURL({ genre: genre === 'All' ? '' : genre });
+  };
 
-  // Handle page changes
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    
-    // Update URL
-    const params = new URLSearchParams(urlSearchParams);
-    params.set('page', page.toString());
-    router.push(`?${params.toString()}`, { scroll: false });
+  const handlePlatformChange = (platform: string) => {
+    setSelectedPlatform(platform);
+    updateURL({ platform: platform === 'All' ? '' : platform });
+  };
+
+  const handleSortChange = (sort: string) => {
+    setSortBy(sort);
+    updateURL({ sort });
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedGenre('');
+    setSelectedPlatform('');
+    setSortBy('popular');
+    router.push('/games');
   };
 
   return (
-    <>
-      {/* Search Status */}
-      <div className="mb-4 text-sm text-g-muted flex items-center gap-2">
-        <span>
-          {isSearching ? 'Searching...' : `${searchResults.length} games`}
-        </span>
-        
-        {clientReady && searchTime > 0 && (
-          <span className="text-purple-400">
-            ({searchTime.toFixed(1)}ms)
+    <div className="space-y-6">
+      {/* Search Bar */}
+      <form onSubmit={handleSearch} className="relative">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search games..."
+            className="w-full px-6 py-4 pr-14 rounded-full bg-g-card border-2 border-g-border text-g-text placeholder-g-muted focus:outline-none focus:border-purple-500 transition-colors text-lg"
+          />
+          <button
+            type="submit"
+            disabled={isPending}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-purple-600 hover:bg-purple-700 rounded-full transition-colors disabled:opacity-50"
+            aria-label="Search"
+          >
+            <MagnifyingGlassIcon className="w-5 h-5 text-white" />
+          </button>
+        </div>
+      </form>
+
+      {/* Filters Toggle */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-g-card border border-g-border hover:border-purple-500 text-g-text rounded-lg transition-colors"
+        >
+          <FunnelIcon className="w-5 h-5" />
+          <span>Filters</span>
+          {(selectedGenre || selectedPlatform || searchQuery) && (
+            <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+          )}
+        </button>
+
+        <div className="flex items-center gap-4">
+          <span className="text-g-muted text-sm">
+            {totalResults} {totalResults === 1 ? 'game' : 'games'} found
           </span>
-        )}
-        
-        {clientReady && (
-          <span className="text-green-400 text-xs">⚡ Enhanced</span>
-        )}
-        
-        {!clientReady && indexReady && (
-          <span className="text-yellow-400 text-xs">🔄 Loading...</span>
-        )}
+          
+          <select
+            value={sortBy}
+            onChange={(e) => handleSortChange(e.target.value)}
+            disabled={isPending}
+            className="bg-g-card border border-g-border rounded-lg px-4 py-2 text-g-text focus:outline-none focus:border-purple-500 disabled:opacity-50"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Results */}
-      {isSearching ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="aspect-video skeleton rounded-xl" />
-          ))}
-        </div>
-      ) : paginatedResults.length > 0 ? (
-        <>
-          <GameGrid games={paginatedResults} />
-          {totalPages > 1 && (
-            <div className="mt-8">
-              <Pagination 
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-g-card border border-g-border rounded-xl p-6 space-y-6">
+          {/* Genre Filter */}
+          <div>
+            <h3 className="text-g-text font-semibold mb-3">Genre</h3>
+            <div className="flex flex-wrap gap-2">
+              {genres.map((genre) => (
+                <button
+                  key={genre}
+                  onClick={() => handleGenreChange(genre)}
+                  disabled={isPending}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                    (selectedGenre === genre || (genre === 'All' && !selectedGenre))
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-g-bg text-g-muted hover:bg-g-border hover:text-g-text'
+                  }`}
+                >
+                  {genre}
+                </button>
+              ))}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-20 text-g-muted">
-          <p className="text-xl mb-2">No games found</p>
-          <p className="text-sm">Try adjusting your filters or search term</p>
-          {query && (
+          </div>
+
+          {/* Platform Filter */}
+          <div>
+            <h3 className="text-g-text font-semibold mb-3">Platform</h3>
+            <div className="flex flex-wrap gap-2">
+              {platforms.map((platform) => (
+                <button
+                  key={platform}
+                  onClick={() => handlePlatformChange(platform)}
+                  disabled={isPending}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                    (selectedPlatform === platform || (platform === 'All' && !selectedPlatform))
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-g-bg text-g-muted hover:bg-g-border hover:text-g-text'
+                  }`}
+                >
+                  {platform}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Clear Filters */}
+          {(selectedGenre || selectedPlatform || searchQuery) && (
             <button
-              onClick={() => {
-                const params = new URLSearchParams(urlSearchParams);
-                params.delete('q');
-                router.push(`?${params.toString()}`);
-              }}
-              className="mt-4 text-purple-400 hover:text-purple-300 underline"
+              onClick={clearFilters}
+              disabled={isPending}
+              className="w-full px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              Clear search
+              Clear All Filters
             </button>
           )}
         </div>
       )}
-    </>
+
+      {/* Loading State */}
+      {isPending && (
+        <div className="flex justify-center py-12">
+          <div className="spinner"></div>
+        </div>
+      )}
+
+      {/* Pagination - No onPageChange needed, uses URL routing */}
+      {!isPending && totalPages > 1 && (
+        <div className="mt-12">
+          <Pagination currentPage={currentPage} totalPages={totalPages} />
+        </div>
+      )}
+    </div>
   );
 }
