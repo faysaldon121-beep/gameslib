@@ -1,3 +1,4 @@
+'use-client'
 import { FaCheckCircle } from "react-icons/fa";
 import { remark } from "remark";
 import remarkHtml from "remark-html";
