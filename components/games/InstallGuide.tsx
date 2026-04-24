@@ -1,4 +1,6 @@
 import { FaCheckCircle } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   steps: string[];
@@ -18,10 +20,10 @@ export default function InstallGuide({ steps, title }: Props) {
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center font-bold text-white text-sm">
               {index + 1}
             </div>
-            <div className="flex-1 pt-1">
-              <p className="text-gray-300 group-hover:text-white transition-colors">
+            <div className="flex-1 pt-1 prose prose-invert max-w-none prose-p:mt-0 prose-p:mb-0 prose-ul:mt-1 prose-ul:mb-0 prose-li:mt-0 prose-code:text-cyan-300 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {step}
-              </p>
+              </ReactMarkdown>
             </div>
             <FaCheckCircle className="text-green-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
