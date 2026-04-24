@@ -1,32 +1,13 @@
-'use-client'
+"use client";
+
 import { FaCheckCircle } from "react-icons/fa";
-import { remark } from "remark";
-import remarkHtml from "remark-html";
-import { useEffect, useState } from "react";
 
 interface Props {
-  steps: string[];
+  htmlSteps: string[];      // Pre‑converted HTML strings
   title: string;
 }
 
-export default function InstallGuide({ steps, title }: Props) {
-  const [htmlSteps, setHtmlSteps] = useState<string[]>([]);
-
-  useEffect(() => {
-    async function convertSteps() {
-      const converted = await Promise.all(
-        steps.map(async (step) => {
-          const result = await remark()
-            .use(remarkHtml, { sanitize: false }) // sanitize manually if needed
-            .process(step);
-          return result.toString();
-        })
-      );
-      setHtmlSteps(converted);
-    }
-    convertSteps();
-  }, [steps]);
-
+export default function InstallGuide({ htmlSteps, title }: Props) {
   return (
     <section className="bg-gray-900/50 rounded-2xl p-6 border border-gray-800">
       <h2 className="text-2xl font-bold text-white mb-6">
