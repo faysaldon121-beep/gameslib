@@ -25,7 +25,8 @@ import {
   FaShieldAlt,
   FaBolt
 } from "react-icons/fa";
-
+import { remark } from "remark"; 
+import remarkHtml from "remark-html";
 // Extended game type with all fields we need
 type GameData = IGame & {
   requirements: {
@@ -56,6 +57,18 @@ type GameData = IGame & {
   publisher: string;
 };
 
+
+async function convertStepsToHtml(steps: string[]): Promise<string[]> {
+  const converted = await Promise.all(
+    steps.map(async (step) => {
+      const result = await remark()
+        .use(remarkHtml, { sanitize: false }) // sanitize if needed
+        .process(step);
+      return result.toString();
+    })
+  );
+  return converted;
+}
 // Default placeholder data
 const DEFAULT_REQUIREMENTS = {
   minimum: {
@@ -199,7 +212,8 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
     getGame(params.slug),
     getReviews(params.slug),
   ]);
-  
+  const game = await getGame(params.slug); // your data fetching
+  const htmlSteps = await convertStepsToHtml(game.installationGuide);
   const schema = buildGameSchema(game, reviews as any[]);
 
   return (
@@ -334,11 +348,8 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
                 title={game.title} 
               />
 
-              {/* Installation Guide */}
-              <InstallGuide 
-                steps={game.installationGuide} 
-                title={game.title} 
-              />
+     
+      <InstallGuide htmlSteps={htmlSteps} title={game.title} />
 
               {/* Reviews */}
               <section className="bg-gray-900/50 rounded-2xl p-6 border border-gray-800" id="reviews">
