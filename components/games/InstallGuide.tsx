@@ -25,7 +25,7 @@ export default function InstallGuide({ htmlSteps, title }: Props) {
               prose-code:text-cyan-300 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded">
               <div dangerouslySetInnerHTML={{ __html: html }} />
             </div>
-            <FaCheckCircle className="text-green-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+          
           </div>
         ))}
       </div>
