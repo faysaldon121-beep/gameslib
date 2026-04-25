@@ -212,7 +212,7 @@ export default async function GameDetailPage({ params }: { params: { slug: strin
     getGame(params.slug),
     getReviews(params.slug),
   ]);
-  const game = await getGame(params.slug); // your data fetching
+ // const game = await getGame(params.slug); // your data fetching
   const htmlSteps = await convertStepsToHtml(game.installationGuide);
   const schema = buildGameSchema(game, reviews as any[]);
 
