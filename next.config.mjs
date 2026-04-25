@@ -33,6 +33,7 @@ const nextConfig = {
       ...config.resolve.fallback,
       fs: false,
     };
+    config.resolve.alias['@sanity-config'] = require.resolve('./sanity.config.ts');
     return config;
   },
   async headers() {
