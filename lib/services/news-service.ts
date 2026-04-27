@@ -1,219 +1,245 @@
-import { client, writeClient } from '@/sanity/lib/client';
-import {
-  paginatedNewsQuery,
-  trendingNewsQuery,
-  breakingNewsQuery,
-  featuredNewsQuery,
-  newsBySlugQuery,
-  newsByCategoryQuery,
-  newsByPlatformQuery,
-  searchNewsQuery,
-  relatedNewsQuery,
-  categoriesWithCountQuery,
-  popularTagsQuery,
-} from '@/sanity/lib/queries';
-import { NewsBase, NewsDetail, NewsPagination } from '@/types/news';
+import dbConnect from '@/lib/db/mongodb';
+import News, { INews } from '@/lib/models/News';
+import { NewsBase } from '@/types/news';
 
 export class NewsService {
   // Get latest news with pagination
-  static async getLatestNews(limit: number = 24, page: number = 1): Promise<NewsPagination> {
-    const start = (page - 1) * limit;
-    const end = start + limit;
+  static async getLatestNews(limit = 24, page = 1) {
+    await dbConnect();
 
-    try {
-      const result = await client.fetch(paginatedNewsQuery, { start, end });
+    const skip = (page - 1) * limit;
 
-      return {
-        news: result.news || [],
-        total: result.total || 0,
-        pages: Math.ceil((result.total || 0) / limit),
-        currentPage: page,
-      };
-    } catch (error) {
-      console.error('Error fetching latest news:', error);
-      return { news: [], total: 0, pages: 0, currentPage: 1 };
-    }
-  }
+    const [news, total] = await Promise.all([
+      News.find({ status: 'published' })
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      News.countDocuments({ status: 'published' }),
+    ]);
 
-  // Get trending news
-  static async getTrendingNews(limit: number = 10): Promise<NewsBase[]> {
-    try {
-      return await client.fetch(trendingNewsQuery, { limit });
-    } catch (error) {
-      console.error('Error fetching trending news:', error);
-      return [];
-    }
-  }
-
-  // Get breaking news
-  static async getBreakingNews(limit: number = 3): Promise<NewsBase[]> {
-    try {
-      return await client.fetch(breakingNewsQuery, { limit });
-    } catch (error) {
-      console.error('Error fetching breaking news:', error);
-      return [];
-    }
-  }
-
-  // Get featured news
-  static async getFeaturedNews(): Promise<NewsBase | null> {
-    try {
-      return await client.fetch(featuredNewsQuery);
-    } catch (error) {
-      console.error('Error fetching featured news:', error);
-      return null;
-    }
-  }
-
-  // Get news by slug
-  static async getNewsBySlug(slug: string): Promise<NewsDetail | null> {
-    try {
-      return await client.fetch(newsBySlugQuery, { slug });
-    } catch (error) {
-      console.error('Error fetching news by slug:', error);
-      return null;
-    }
+    return {
+      news: news.map(this.formatNews),
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+    };
   }
 
   // Get news by category
-  static async getNewsByCategory(
-    category: string,
-    limit: number = 24,
-    page: number = 1
-  ): Promise<NewsPagination> {
-    const start = (page - 1) * limit;
-    const end = start + limit;
+  static async getNewsByCategory(category: string, limit = 24, page = 1) {
+    await dbConnect();
 
-    try {
-      const result = await client.fetch(newsByCategoryQuery, { category, start, end });
+    const skip = (page - 1) * limit;
 
-      return {
-        news: result.news || [],
-        total: result.total || 0,
-        pages: Math.ceil((result.total || 0) / limit),
-        currentPage: page,
-      };
-    } catch (error) {
-      console.error('Error fetching news by category:', error);
-      return { news: [], total: 0, pages: 0, currentPage: 1 };
-    }
+    const [news, total] = await Promise.all([
+      News.find({ status: 'published', category: category.toLowerCase() })
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      News.countDocuments({ status: 'published', category: category.toLowerCase() }),
+    ]);
+
+    return {
+      news: news.map(this.formatNews),
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+    };
   }
 
   // Get news by platform
-  static async getNewsByPlatform(
-    platform: string,
-    limit: number = 24,
-    page: number = 1
-  ): Promise<NewsPagination> {
-    const start = (page - 1) * limit;
-    const end = start + limit;
+  static async getNewsByPlatform(platform: string, limit = 24, page = 1) {
+    await dbConnect();
 
-    try {
-      const result = await client.fetch(newsByPlatformQuery, { platform, start, end });
+    const skip = (page - 1) * limit;
 
-      return {
-        news: result.news || [],
-        total: result.total || 0,
-        pages: Math.ceil((result.total || 0) / limit),
-        currentPage: page,
-      };
-    } catch (error) {
-      console.error('Error fetching news by platform:', error);
-      return { news: [], total: 0, pages: 0, currentPage: 1 };
-    }
+    const [news, total] = await Promise.all([
+      News.find({ status: 'published', platforms: platform })
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      News.countDocuments({ status: 'published', platforms: platform }),
+    ]);
+
+    return {
+      news: news.map(this.formatNews),
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+    };
   }
 
-  // Search news - FIXED: Changed parameter name to searchTerm
-  static async searchNews(
-    query: string,
-    limit: number = 24,
-    page: number = 1
-  ): Promise<NewsPagination> {
-    const start = (page - 1) * limit;
-    const end = start + limit;
+  // Search news
+  static async searchNews(query: string, limit = 24, page = 1) {
+    await dbConnect();
 
-    try {
-      const result = await client.fetch(searchNewsQuery, {
-        searchTerm: `*${query}*`,  // Changed from 'query' to 'searchTerm'
-        start,
-        end,
-      });
+    const skip = (page - 1) * limit;
 
-      return {
-        news: result.news || [],
-        total: result.total || 0,
-        pages: Math.ceil((result.total || 0) / limit),
-        currentPage: page,
-      };
-    } catch (error) {
-      console.error('Error searching news:', error);
-      return { news: [], total: 0, pages: 0, currentPage: 1 };
-    }
+    const searchQuery = {
+      status: 'published',
+      $text: { $search: query },
+    };
+
+    const [news, total] = await Promise.all([
+      News.find(searchQuery)
+        .sort({ score: { $meta: 'textScore' }, publishedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      News.countDocuments(searchQuery),
+    ]);
+
+    return {
+      news: news.map(this.formatNews),
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+    };
+  }
+
+  // Get trending news (by views)
+  static async getTrendingNews(limit = 10) {
+    await dbConnect();
+
+    const news = await News.find({ status: 'published' })
+      .sort({ views: -1, publishedAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    return news.map(this.formatNews);
+  }
+
+  // Get featured news
+  static async getFeaturedNews() {
+    await dbConnect();
+
+    const news = await News.findOne({
+      status: 'published',
+      isFeatured: true,
+    })
+      .sort({ publishedAt: -1 })
+      .lean()
+      .exec();
+
+    return news ? this.formatNews(news) : null;
+  }
+
+  // Get breaking news
+  static async getBreakingNews(limit = 3) {
+    await dbConnect();
+
+    const news = await News.find({
+      status: 'published',
+      isBreaking: true,
+    })
+      .sort({ publishedAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    return news.map(this.formatNews);
+  }
+
+  // Get news by slug
+  static async getNewsBySlug(slug: string) {
+    await dbConnect();
+
+    const news = await News.findOne({ slug, status: 'published' }).lean().exec();
+
+    if (!news) return null;
+
+    // Increment views
+    await News.findByIdAndUpdate(news._id, { $inc: { views: 1 } });
+
+    return this.formatNews(news);
   }
 
   // Get related news
-  static async getRelatedNews(
-    newsId: string,
-    category: string,
-    limit: number = 4
-  ): Promise<NewsBase[]> {
-    try {
-      return await client.fetch(relatedNewsQuery, { newsId, category, limit });
-    } catch (error) {
-      console.error('Error fetching related news:', error);
-      return [];
-    }
+  static async getRelatedNews(newsId: string, category: string, tags: string[], limit = 4) {
+    await dbConnect();
+
+    const news = await News.find({
+      _id: { $ne: newsId },
+      status: 'published',
+      $or: [{ category }, { tags: { $in: tags } }],
+    })
+      .sort({ publishedAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    return news.map(this.formatNews);
   }
 
   // Get categories with count
-  static async getCategories(): Promise<Array<{ category: string; count: number }>> {
-    try {
-      return await client.fetch(categoriesWithCountQuery);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      return [];
-    }
+  static async getCategories() {
+    await dbConnect();
+
+    const categories = await News.aggregate([
+      { $match: { status: 'published' } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $project: { category: '$_id', count: 1, _id: 0 } },
+    ]);
+
+    return categories;
   }
 
   // Get popular tags
-  static async getPopularTags(): Promise<string[]> {
-    try {
-      return await client.fetch(popularTagsQuery);
-    } catch (error) {
-      console.error('Error fetching popular tags:', error);
-      return [];
-    }
+  static async getPopularTags(limit = 20) {
+    await dbConnect();
+
+    const tags = await News.aggregate([
+      { $match: { status: 'published' } },
+      { $unwind: '$tags' },
+      { $group: { _id: '$tags', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+      { $project: { tag: '$_id', _id: 0 } },
+    ]);
+
+    return tags.map((t: any) => t.tag);
   }
 
-  // Increment views
-  static async incrementViews(newsId: string): Promise<void> {
-    try {
-      await writeClient
-        .patch(newsId)
-        .setIfMissing({ views: 0 })
-        .inc({ views: 1 })
-        .commit({ autoGenerateArrayKeys: true });
-    } catch (error) {
-      console.error('Error incrementing views:', error);
+  // Increment share count
+  static async incrementShares(slug: string, platform?: string) {
+    await dbConnect();
+
+    const updateQuery: any = { $inc: { 'shares.total': 1 } };
+
+    if (platform && ['twitter', 'facebook', 'reddit'].includes(platform)) {
+      updateQuery.$inc[`shares.${platform}`] = 1;
     }
+
+    await News.findOneAndUpdate({ slug }, updateQuery);
   }
 
-  // Increment shares
-  static async incrementShares(
-    newsId: string,
-    platform: 'facebook' | 'twitter' | 'reddit'
-  ): Promise<void> {
-    try {
-      await writeClient
-        .patch(newsId)
-        .setIfMissing({ shares: { facebook: 0, twitter: 0, reddit: 0, total: 0 } })
-        .inc({
-          [`shares.${platform}`]: 1,
-          'shares.total': 1,
-        })
-        .commit({ autoGenerateArrayKeys: true });
-    } catch (error) {
-      console.error('Error incrementing shares:', error);
-    }
+  // Format news for response
+  private static formatNews(news: any): NewsBase {
+    return {
+      _id: news._id.toString(),
+      title: news.title,
+      slug: news.slug,
+      excerpt: news.excerpt,
+      category: news.category,
+      platforms: news.platforms || [],
+      tags: news.tags || [],
+      author: news.author,
+      featuredImage: news.featuredImage,
+      isBreaking: news.isBreaking || false,
+      isFeatured: news.isFeatured || false,
+      readingTime: news.readingTime,
+      views: news.views || 0,
+      shares: news.shares || { total: 0 },
+      publishedAt: news.publishedAt?.toISOString() || news.createdAt?.toISOString(),
+    };
   }
 }
