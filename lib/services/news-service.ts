@@ -1,6 +1,8 @@
+// lib/services/news-service.ts
 import dbConnect from '@/lib/db/mongodb';
 import News, { INews } from '@/lib/models/News';
 import { NewsBase } from '@/types/news';
+import { hashIP } from '@/lib/utils/hash';
 
 export class NewsService {
   // Get latest news with pagination
@@ -104,12 +106,12 @@ export class NewsService {
     };
   }
 
-  // Get trending news (by views)
+  // Get trending news (by unique views)
   static async getTrendingNews(limit = 10) {
     await dbConnect();
 
     const news = await News.find({ status: 'published' })
-      .sort({ views: -1, publishedAt: -1 })
+      .sort({ uniqueViews: -1, publishedAt: -1 })
       .limit(limit)
       .lean()
       .exec();
@@ -148,18 +150,135 @@ export class NewsService {
     return news.map(this.formatNews);
   }
 
-  // Get news by slug
+  // Get news by slug with full content
   static async getNewsBySlug(slug: string) {
     await dbConnect();
 
-    const news = await News.findOne({ slug, status: 'published' }).lean().exec();
+    const news = await News.findOne({ slug, status: 'published' })
+      .lean()
+      .exec();
 
     if (!news) return null;
 
-    // Increment views
-    await News.findByIdAndUpdate(news._id, { $inc: { views: 1 } });
+    return this.formatNewsDetail(news);
+  }
 
-    return this.formatNews(news);
+  // ✅ INCREMENT VIEWS (IP-based, one view per IP)
+  static async incrementViews(newsId: string, clientIP: string) {
+    await dbConnect();
+
+    try {
+      const hashedIP = hashIP(clientIP);
+
+      // Check if this IP has already viewed this article
+      const news = await News.findById(newsId).select('viewedBy').lean();
+      
+      if (!news) {
+        throw new Error('News not found');
+      }
+
+      const hasViewed = news.viewedBy?.includes(hashedIP);
+
+      if (hasViewed) {
+        // Already viewed, don't increment
+        return { alreadyViewed: true };
+      }
+
+      // Increment both views and uniqueViews, add IP to viewedBy
+      const result = await News.findByIdAndUpdate(
+        newsId,
+        {
+          $inc: { views: 1, uniqueViews: 1 },
+          $addToSet: { viewedBy: hashedIP },
+        },
+        { new: true }
+      );
+
+      return { alreadyViewed: false, views: result?.views, uniqueViews: result?.uniqueViews };
+    } catch (error) {
+      console.error('Error incrementing views:', error);
+      throw error;
+    }
+  }
+
+  // ✅ INCREMENT VIEWS BY SLUG
+  static async incrementViewsBySlug(slug: string, clientIP: string) {
+    await dbConnect();
+
+    try {
+      const hashedIP = hashIP(clientIP);
+
+      // Check if this IP has already viewed this article
+      const news = await News.findOne({ slug }).select('viewedBy').lean();
+      
+      if (!news) {
+        throw new Error('News not found');
+      }
+
+      const hasViewed = news.viewedBy?.includes(hashedIP);
+
+      if (hasViewed) {
+        return { alreadyViewed: true };
+      }
+
+      const result = await News.findOneAndUpdate(
+        { slug },
+        {
+          $inc: { views: 1, uniqueViews: 1 },
+          $addToSet: { viewedBy: hashedIP },
+        },
+        { new: true }
+      );
+
+      return { alreadyViewed: false, views: result?.views, uniqueViews: result?.uniqueViews };
+    } catch (error) {
+      console.error('Error incrementing views:', error);
+      throw error;
+    }
+  }
+
+  // ✅ INCREMENT SHARES
+  static async incrementShares(newsId: string, platform?: string) {
+    await dbConnect();
+
+    try {
+      const updateQuery: any = { $inc: { 'shares.total': 1 } };
+
+      if (platform && ['twitter', 'facebook', 'reddit'].includes(platform)) {
+        updateQuery.$inc[`shares.${platform}`] = 1;
+      }
+
+      const result = await News.findByIdAndUpdate(newsId, updateQuery, {
+        new: true,
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error incrementing shares:', error);
+      throw error;
+    }
+  }
+
+  // ✅ INCREMENT SHARES BY SLUG
+  static async incrementSharesBySlug(slug: string, platform?: string) {
+    await dbConnect();
+
+    try {
+      const updateQuery: any = { $inc: { 'shares.total': 1 } };
+
+      if (platform && ['twitter', 'facebook', 'reddit'].includes(platform)) {
+        updateQuery.$inc[`shares.${platform}`] = 1;
+      }
+
+      const result = await News.findOneAndUpdate({ slug }, updateQuery, {
+        new: true,
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error incrementing shares:', error);
+      throw error;
+    }
   }
 
   // Get related news
@@ -209,20 +328,7 @@ export class NewsService {
     return tags.map((t: any) => t.tag);
   }
 
-  // Increment share count
-  static async incrementShares(slug: string, platform?: string) {
-    await dbConnect();
-
-    const updateQuery: any = { $inc: { 'shares.total': 1 } };
-
-    if (platform && ['twitter', 'facebook', 'reddit'].includes(platform)) {
-      updateQuery.$inc[`shares.${platform}`] = 1;
-    }
-
-    await News.findOneAndUpdate({ slug }, updateQuery);
-  }
-
-  // Format news for response
+  // Format news for list view
   private static formatNews(news: any): NewsBase {
     return {
       _id: news._id.toString(),
@@ -238,8 +344,19 @@ export class NewsService {
       isFeatured: news.isFeatured || false,
       readingTime: news.readingTime,
       views: news.views || 0,
-      shares: news.shares || { total: 0 },
+      uniqueViews: news.uniqueViews || 0,
+      shares: news.shares || { total: 0, twitter: 0, facebook: 0, reddit: 0 },
       publishedAt: news.publishedAt?.toISOString() || news.createdAt?.toISOString(),
+    };
+  }
+
+  // Format news for detail view (includes content and SEO)
+  private static formatNewsDetail(news: any) {
+    return {
+      ...this.formatNews(news),
+      content: news.content,
+      gallery: news.gallery || [],
+      seo: news.seo || {},
     };
   }
 }
