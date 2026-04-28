@@ -1,7 +1,7 @@
 // lib/services/news-service.ts
 import dbConnect from '@/lib/db/mongodb';
 import News, { INews } from '@/lib/models/News';
-import { NewsBase } from '@/types/news';
+import { NewsBase, NewsDetail } from '@/types/news';
 import { hashIP } from '@/lib/utils/hash';
 
 export class NewsService {
@@ -107,7 +107,7 @@ export class NewsService {
   }
 
   // Get trending news (by unique views)
-  static async getTrendingNews(limit = 10) {
+  static async getTrendingNews(limit = 10): Promise<NewsBase[]> {
     await dbConnect();
 
     const news = await News.find({ status: 'published' })
@@ -120,7 +120,7 @@ export class NewsService {
   }
 
   // Get featured news
-  static async getFeaturedNews() {
+  static async getFeaturedNews(): Promise<NewsBase | null> {
     await dbConnect();
 
     const news = await News.findOne({
@@ -135,7 +135,7 @@ export class NewsService {
   }
 
   // Get breaking news
-  static async getBreakingNews(limit = 3) {
+  static async getBreakingNews(limit = 3): Promise<NewsBase[]> {
     await dbConnect();
 
     const news = await News.find({
@@ -151,7 +151,7 @@ export class NewsService {
   }
 
   // Get news by slug with full content
-  static async getNewsBySlug(slug: string) {
+  static async getNewsBySlug(slug: string): Promise<NewsDetail | null> {
     await dbConnect();
 
     const news = await News.findOne({ slug, status: 'published' })
@@ -163,14 +163,13 @@ export class NewsService {
     return this.formatNewsDetail(news);
   }
 
-  // ✅ INCREMENT VIEWS (IP-based, one view per IP)
+  // INCREMENT VIEWS (IP-based, one view per IP)
   static async incrementViews(newsId: string, clientIP: string) {
     await dbConnect();
 
     try {
       const hashedIP = hashIP(clientIP);
 
-      // Check if this IP has already viewed this article
       const news = await News.findById(newsId).select('viewedBy').lean();
       
       if (!news) {
@@ -180,11 +179,9 @@ export class NewsService {
       const hasViewed = news.viewedBy?.includes(hashedIP);
 
       if (hasViewed) {
-        // Already viewed, don't increment
         return { alreadyViewed: true };
       }
 
-      // Increment both views and uniqueViews, add IP to viewedBy
       const result = await News.findByIdAndUpdate(
         newsId,
         {
@@ -194,21 +191,24 @@ export class NewsService {
         { new: true }
       );
 
-      return { alreadyViewed: false, views: result?.views, uniqueViews: result?.uniqueViews };
+      return { 
+        alreadyViewed: false, 
+        views: result?.views || 0, 
+        uniqueViews: result?.uniqueViews || 0 
+      };
     } catch (error) {
       console.error('Error incrementing views:', error);
       throw error;
     }
   }
 
-  // ✅ INCREMENT VIEWS BY SLUG
+  // INCREMENT VIEWS BY SLUG
   static async incrementViewsBySlug(slug: string, clientIP: string) {
     await dbConnect();
 
     try {
       const hashedIP = hashIP(clientIP);
 
-      // Check if this IP has already viewed this article
       const news = await News.findOne({ slug }).select('viewedBy').lean();
       
       if (!news) {
@@ -230,14 +230,18 @@ export class NewsService {
         { new: true }
       );
 
-      return { alreadyViewed: false, views: result?.views, uniqueViews: result?.uniqueViews };
+      return { 
+        alreadyViewed: false, 
+        views: result?.views || 0, 
+        uniqueViews: result?.uniqueViews || 0 
+      };
     } catch (error) {
       console.error('Error incrementing views:', error);
       throw error;
     }
   }
 
-  // ✅ INCREMENT SHARES
+  // INCREMENT SHARES
   static async incrementShares(newsId: string, platform?: string) {
     await dbConnect();
 
@@ -259,7 +263,7 @@ export class NewsService {
     }
   }
 
-  // ✅ INCREMENT SHARES BY SLUG
+  // INCREMENT SHARES BY SLUG
   static async incrementSharesBySlug(slug: string, platform?: string) {
     await dbConnect();
 
@@ -282,7 +286,12 @@ export class NewsService {
   }
 
   // Get related news
-  static async getRelatedNews(newsId: string, category: string, tags: string[], limit = 4) {
+  static async getRelatedNews(
+    newsId: string, 
+    category: string, 
+    tags: string[], 
+    limit = 4
+  ): Promise<NewsBase[]> {
     await dbConnect();
 
     const news = await News.find({
@@ -313,7 +322,7 @@ export class NewsService {
   }
 
   // Get popular tags
-  static async getPopularTags(limit = 20) {
+  static async getPopularTags(limit = 20): Promise<string[]> {
     await dbConnect();
 
     const tags = await News.aggregate([
@@ -328,7 +337,7 @@ export class NewsService {
     return tags.map((t: any) => t.tag);
   }
 
-  // Format news for list view
+  // ✅ Format news for list view (correct types)
   private static formatNews(news: any): NewsBase {
     return {
       _id: news._id.toString(),
@@ -338,8 +347,16 @@ export class NewsService {
       category: news.category,
       platforms: news.platforms || [],
       tags: news.tags || [],
-      author: news.author,
-      featuredImage: news.featuredImage,
+      author: {
+        name: news.author.name,
+        avatar: news.author.avatar,
+      },
+      featuredImage: {
+        url: news.featuredImage.url,
+        alt: news.featuredImage.alt,
+        width: news.featuredImage.width,
+        height: news.featuredImage.height,
+      },
       isBreaking: news.isBreaking || false,
       isFeatured: news.isFeatured || false,
       readingTime: news.readingTime,
@@ -350,8 +367,8 @@ export class NewsService {
     };
   }
 
-  // Format news for detail view (includes content and SEO)
-  private static formatNewsDetail(news: any) {
+  // ✅ Format news for detail view (correct types with content and SEO)
+  private static formatNewsDetail(news: any): NewsDetail {
     return {
       ...this.formatNews(news),
       content: news.content,
