@@ -15,6 +15,7 @@ import { NewsBase } from '@/types/news';
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
 
+
 export const metadata: Metadata = {
   title: 'Gaming News - Latest Game Updates, Trailers & Reviews | GamesLib',
   description: 'Stay updated with the latest gaming news, breaking updates, game trailers, reviews, and industry insights. Your ultimate source for gaming content.',
