@@ -2,12 +2,13 @@
 'use client';
 
 import { useNewsTracking } from '@/lib/hooks/useNewsTracking';
+import { NewsDetail, NewsBase } from '@/types/news';
 import Image from 'next/image';
 import { FaTwitter, FaFacebook, FaReddit, FaEye, FaShareAlt } from 'react-icons/fa';
 
 interface NewsDetailClientProps {
-  news: any;
-  relatedNews: any[];
+  news: NewsDetail;
+  relatedNews: NewsBase[];
 }
 
 export default function NewsDetailClient({ news, relatedNews }: NewsDetailClientProps) {
@@ -93,19 +94,19 @@ export default function NewsDetailClient({ news, relatedNews }: NewsDetailClient
       <div className="flex gap-4 mb-8">
         <button
           onClick={() => handleShare('twitter')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
         >
           <FaTwitter /> Share on Twitter
         </button>
         <button
           onClick={() => handleShare('facebook')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 transition"
         >
           <FaFacebook /> Share on Facebook
         </button>
         <button
           onClick={() => handleShare('reddit')}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
         >
           <FaReddit /> Share on Reddit
         </button>
@@ -125,7 +126,7 @@ export default function NewsDetailClient({ news, relatedNews }: NewsDetailClient
             {news.tags.map((tag: string) => (
               <span
                 key={tag}
-                className="px-3 py-1 bg-gray-200 rounded-full text-sm"
+                className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300 transition"
               >
                 #{tag}
               </span>
@@ -143,19 +144,22 @@ export default function NewsDetailClient({ news, relatedNews }: NewsDetailClient
               <a
                 key={related._id}
                 href={`/news/${related.slug}`}
-                className="group"
+                className="group block"
               >
                 <div className="relative h-48 mb-4 rounded-lg overflow-hidden">
                   <Image
                     src={related.featuredImage.url}
                     alt={related.featuredImage.alt}
                     fill
-                    className="object-cover group-hover:scale-105 transition"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
-                <h4 className="font-bold group-hover:text-blue-600 transition">
+                <h4 className="font-bold group-hover:text-blue-600 transition-colors">
                   {related.title}
                 </h4>
+                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                  {related.excerpt}
+                </p>
               </a>
             ))}
           </div>
