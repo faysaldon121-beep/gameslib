@@ -27,7 +27,7 @@ export function NewsJsonLd({ news }: NewsJsonLdProps) {
     author: {
       '@type': 'Person',
       name: news.author.name,
-      url: `${siteUrl}/author/${news.author.name.toLowerCase().replace(/\s+/g, '-')}`,
+      url: `${siteUrl}/author?name=${news.author.name.toLowerCase().replace(/\s+/g, '-')}`,
     },
     publisher: {
       '@type': 'Organization',
