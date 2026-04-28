@@ -12,7 +12,7 @@ interface PageProps {
   };
 }
 
-// Generate metadata for SEO
+// ✅ Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const news = await NewsService.getNewsBySlug(params.slug);
 
@@ -27,10 +27,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // Static generation for better performance
 export async function generateStaticParams() {
-  // Generate static paths for popular news
-  // You can limit this or make it dynamic based on your needs
+  // You can generate static paths here or leave empty for dynamic
   return [];
 }
+
+// ✅ Revalidate every hour for ISR
+export const revalidate = 3600;
 
 export default async function NewsDetailPage({ params }: PageProps) {
   const news = await NewsService.getNewsBySlug(params.slug);
