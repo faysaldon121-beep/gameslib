@@ -130,76 +130,69 @@ export default async function NewsPage({
           <NewsCategoryNav />
         </div>
 
-        {/* Featured Hero */}
-        {featuredNews && currentPage === 1 && !query && !category && !platform && (
-          <section className="mb-12">
-            <div className="flex items-center gap-2 mb-4">
-              <FireIcon className="w-6 h-6 text-orange-500" />
-              <h2 className="text-2xl font-black text-white">Featured Story</h2>
+{/* Featured News */}
+{featuredNews && (
+  <section className="mb-16">
+    <div className="flex items-center gap-3 mb-8">
+      <div className="w-1 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full" />
+      <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+        Featured Story
+      </h2>
+    </div>
+    
+    <Link href={`/news/${featuredNews.slug}`} className="block group">
+      <div className="relative h-[500px] rounded-2xl overflow-hidden bg-g-secondary border border-purple-500/20 hover:border-purple-500/50 transition-all">
+        <Image
+          src={featuredNews.featuredImage.url}
+          alt={featuredNews.featuredImage.alt}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          priority
+        />
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+        
+        {/* Content */}
+        <div className="absolute bottom-0 left-0 right-0 p-8">
+          {featuredNews.isBreaking && (
+            <span className="inline-block bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold mb-4 animate-pulse">
+              BREAKING NEWS
+            </span>
+          )}
+          
+          <div className="flex items-center gap-4 text-sm text-gray-300 mb-4">
+            <span className="px-3 py-1 bg-purple-500/20 backdrop-blur-sm rounded-full border border-purple-500/30">
+              {featuredNews.category}
+            </span>
+            <span>{new Date(featuredNews.publishedAt).toLocaleDateString()}</span>
+            <span>•</span>
+            <span>{featuredNews.readingTime} min read</span>
+          </div>
+          
+          <h3 className="text-4xl font-bold text-white mb-4 group-hover:text-purple-400 transition-colors">
+            {featuredNews.title}
+          </h3>
+          
+          <p className="text-gray-300 text-lg line-clamp-2 mb-4">
+            {featuredNews.excerpt}
+          </p>
+          
+          <div className="flex items-center gap-6 text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <FaEye className="text-purple-400" />
+              <span>{featuredNews.uniqueViews.toLocaleString()} views</span>
             </div>
-            
-            <Link href={`/news/${featuredNews.slug.current}`} className="block group">
-              <div className="relative h-[500px] rounded-2xl overflow-hidden bg-g-secondary border border-purple-500/20 hover:border-purple-500/50 transition-all">
-                <Image
-                  src={featuredNews.featuredImage}
-                  alt={featuredNews.title}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-700"
-                  priority
-                  sizes="(max-width: 1200px) 100vw, 1200px"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-
-                <div className="absolute bottom-0 left-0 right-0 p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    {featuredNews.isBreaking && (
-                      <span className="px-4 py-1.5 bg-red-600 text-white text-sm font-black rounded-full uppercase animate-pulse flex items-center gap-2">
-                        <span className="w-2 h-2 bg-white rounded-full"></span>
-                        Breaking
-                      </span>
-                    )}
-                    <span className="px-4 py-1.5 bg-purple-600 text-white text-sm font-bold rounded-full uppercase">
-                      {featuredNews.category}
-                    </span>
-                    {featuredNews.platforms?.slice(0, 2).map((p: string) => (
-                      <span
-                        key={p}
-                        className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full uppercase"
-                      >
-                        {p}
-                      </span>
-                    ))}
-                  </div>
-
-                  <h2 className="text-4xl md:text-6xl font-black text-white mb-4 leading-tight group-hover:text-purple-300 transition-colors">
-                    {featuredNews.title}
-                  </h2>
-
-                  <p className="text-lg text-gray-200 mb-6 max-w-3xl line-clamp-2">
-                    {featuredNews.excerpt}
-                  </p>
-
-                  <div className="flex items-center gap-6 text-gray-300">
-                    <div className="flex items-center gap-2">
-                      <ClockIcon className="w-5 h-5" />
-                      <span>{featuredNews.readingTime} min read</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-2">
-                      <EyeIcon className="w-5 h-5" />
-                      <span>{featuredNews.views?.toLocaleString() || 0} views</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-2">
-                      <ShareIcon className="w-5 h-5" />
-                      <span>{featuredNews.shares?.total || 0} shares</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </section>
-        )}
+            <div className="flex items-center gap-2">
+              <FaShareAlt className="text-purple-400" />
+              <span>{featuredNews.shares.total} shares</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  </section>
+)}
 
         {/* Main Content Grid */}
         <div className="flex flex-col lg:flex-row gap-8">
