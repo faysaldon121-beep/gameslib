@@ -1,24 +1,9 @@
 // components/seo/NewsJsonLd.tsx
 import Script from 'next/script';
+import { NewsDetail } from '@/types/news';
 
 interface NewsJsonLdProps {
-  news: {
-    title: string;
-    slug: string;
-    excerpt: string;
-    author: {
-      name: string;
-      avatar?: string;
-    };
-    featuredImage: {
-      url: string;
-      alt: string;
-      width?: number;
-      height?: number;
-    };
-    publishedAt: string;
-    category: string;
-  };
+  news: NewsDetail;
 }
 
 export function NewsJsonLd({ news }: NewsJsonLdProps) {
