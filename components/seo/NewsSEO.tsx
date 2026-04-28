@@ -1,40 +1,8 @@
 // components/seo/NewsSEO.tsx
 import { Metadata } from 'next';
+import { NewsDetail } from '@/types/news';
 
-interface NewsDetailSEO {
-  _id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  category: string;
-  tags: string[];
-  author: {
-    name: string;
-    avatar?: string;
-  };
-  featuredImage: {
-    url: string;
-    alt: string;
-    width?: number;
-    height?: number;
-  };
-  publishedAt: string;
-  seo?: {
-    metaTitle?: string;
-    metaDescription?: string;
-    metaKeywords?: string[];
-    ogImage?: string;
-    ogTitle?: string;
-    ogDescription?: string;
-    twitterCard?: 'summary' | 'summary_large_image';
-    canonicalUrl?: string;
-    noIndex?: boolean;
-    noFollow?: boolean;
-  };
-}
-
-export function generateNewsMetadata(news: NewsDetailSEO): Metadata {
+export function generateNewsMetadata(news: NewsDetail): Metadata {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com';
   const newsUrl = `${siteUrl}/news/${news.slug}`;
   
