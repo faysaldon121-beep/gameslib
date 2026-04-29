@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { FireIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { NewsBase } from '@/types/news';
 
@@ -14,7 +13,7 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
         <FireIcon className="w-6 h-6 text-orange-500" />
         Trending Now
       </h3>
-      
+
       <div className="space-y-4">
         {news.map((item, index) => (
           <Link
@@ -38,25 +37,13 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
                 </div>
               </div>
 
-              {/* Thumbnail
-              
+              {/* Thumbnail */}
               <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                <Image
-                  src={item.featuredImage}
-                  alt={item.title}
-                  fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-300"
-                  sizes="80px"
+                <img
+                  src={item.featuredImage.url}
+                  alt={item.featuredImage.alt || item.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                 />
-                */}
-
-              <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
-  <img
-    src={item.featuredImage.url}
-    alt={item.featuredImage.alt || item.title}
-    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-  />
-</div>
                 {item.isBreaking && (
                   <div className="absolute top-1 left-1">
                     <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded uppercase">
@@ -71,7 +58,7 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
                 <h4 className="text-white font-bold text-sm line-clamp-2 group-hover:text-purple-400 transition-colors mb-1">
                   {item.title}
                 </h4>
-                
+
                 <div className="flex items-center gap-3 text-xs text-gray-400">
                   <span className="flex items-center gap-1">
                     <EyeIcon className="w-3 h-3" />
@@ -96,4 +83,4 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
       </Link>
     </div>
   );
-}
+              }
