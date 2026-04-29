@@ -152,20 +152,30 @@ function BreakingNewsBar({ news }: { news: NewsBase[] }) {
   if (news.length === 0) return null;
 
   return (
-    <div className="bg-red-600 text-white py-2 overflow-hidden">
+    <div className="bg-red-600 text-white py-2 overflow-hidden relative">
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-4">
-          <span className="font-bold uppercase text-sm flex-shrink-0 flex items-center gap-2">
+          <span className="font-bold uppercase text-sm flex-shrink-0 flex items-center gap-2 z-10">
             <FireIcon className="w-4 h-4 animate-pulse" />
             Breaking
           </span>
           <div className="flex-1 overflow-hidden">
-            <div className="animate-scroll whitespace-nowrap">
-              {news.map((item, i) => (
+            <div className="flex gap-8 animate-marquee whitespace-nowrap">
+              {news.map((item) => (
                 <Link
                   key={item._id}
                   href={`/news/${item.slug}`}
-                  className="inline-block hover:underline mr-8"
+                  className="hover:underline"
+                >
+                  {item.title}
+                </Link>
+              ))}
+              {/* Duplicate for seamless loop */}
+              {news.map((item) => (
+                <Link
+                  key={`${item._id}-dup`}
+                  href={`/news/${item.slug}`}
+                  className="hover:underline"
                 >
                   {item.title}
                 </Link>
@@ -190,6 +200,8 @@ function Pagination({
   totalPages: number;
   baseUrl?: string;
 }) {
+  if (totalPages <= 1) return null;
+
   const pages = [];
   const maxVisible = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
@@ -203,12 +215,14 @@ function Pagination({
     pages.push(i);
   }
 
+  const separator = baseUrl.includes('?') ? '&' : '?';
+
   return (
     <div className="flex items-center justify-center gap-2">
       {/* Previous Button */}
       {currentPage > 1 && (
         <Link
-          href={`${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${currentPage - 1}`}
+          href={`${baseUrl}${separator}page=${currentPage - 1}`}
           className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
         >
           <ChevronLeftIcon className="w-5 h-5" />
@@ -219,7 +233,7 @@ function Pagination({
       {startPage > 1 && (
         <>
           <Link
-            href={`${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=1`}
+            href={`${baseUrl}${separator}page=1`}
             className="px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
           >
             1
@@ -232,7 +246,7 @@ function Pagination({
       {pages.map((page) => (
         <Link
           key={page}
-          href={`${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${page}`}
+          href={`${baseUrl}${separator}page=${page}`}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             page === currentPage
               ? 'bg-purple-600 text-white'
@@ -248,7 +262,7 @@ function Pagination({
         <>
           {endPage < totalPages - 1 && <span className="px-2 text-gray-400">...</span>}
           <Link
-            href={`${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${totalPages}`}
+            href={`${baseUrl}${separator}page=${totalPages}`}
             className="px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
           >
             {totalPages}
@@ -259,7 +273,7 @@ function Pagination({
       {/* Next Button */}
       {currentPage < totalPages && (
         <Link
-          href={`${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${currentPage + 1}`}
+          href={`${baseUrl}${separator}page=${currentPage + 1}`}
           className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
         >
           <ChevronRightIcon className="w-5 h-5" />
@@ -366,7 +380,7 @@ export default async function NewsPage({
   else if (selectedCategory) baseUrl += `?category=${selectedCategory}`;
   else if (selectedPlatform) baseUrl += `?platform=${selectedPlatform}`;
 
-  // Platform list (hardcoded or fetch from DB)
+  // Platform list
   const platforms = ['PC', 'PS5', 'Xbox', 'Switch', 'Mobile'];
 
   return (
@@ -377,7 +391,7 @@ export default async function NewsPage({
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-purple-900 via-blue-900 to-purple-900 py-16 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-blue-500"></div>
         </div>
 
         <div className="container mx-auto px-4 text-center relative z-10">
@@ -556,9 +570,7 @@ export default async function NewsPage({
                   ))}
                 </div>
 
-                {pages > 1 && (
-                  <Pagination currentPage={currentPage} totalPages={pages} baseUrl={baseUrl} />
-                )}
+                <Pagination currentPage={currentPage} totalPages={pages} baseUrl={baseUrl} />
               </>
             ) : (
               <div className="text-center py-20 bg-gray-900/50 rounded-xl border border-gray-800">
@@ -618,21 +630,6 @@ export default async function NewsPage({
           </aside>
         </div>
       </div>
-
-      {/* Add scroll animation for breaking news */}
-      <style jsx>{`
-        @keyframes scroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-        .animate-scroll {
-          animation: scroll 30s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }
