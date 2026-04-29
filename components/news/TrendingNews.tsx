@@ -38,7 +38,8 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
                 </div>
               </div>
 
-              {/* Thumbnail */}
+              {/* Thumbnail
+              
               <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
                 <Image
                   src={item.featuredImage}
@@ -47,6 +48,15 @@ export default function TrendingNews({ news }: TrendingNewsProps) {
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
                   sizes="80px"
                 />
+                */}
+
+              <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+  <img
+    src={item.featuredImage.url}
+    alt={item.featuredImage.alt || item.title}
+    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+  />
+</div>
                 {item.isBreaking && (
                   <div className="absolute top-1 left-1">
                     <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded uppercase">
