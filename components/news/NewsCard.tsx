@@ -16,13 +16,11 @@ export default function NewsCard({ news }: NewsCardProps) {
     >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
-        <Image
-          src={news.featuredImage}
-          alt={news.title}
-          fill
-          className="object-cover group-hover:scale-110 transition-transform duration-500"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
+        <img
+  src={news.featuredImage.url}
+  alt={news.featuredImage.alt || news.title}
+  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+/>
         
         {/* Overlay badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-2">
