@@ -11,6 +11,7 @@ import NewsletterSignup from '@/components/news/NewsletterSignup';
 import Pagination from '@/components/ui/Pagination';
 import { ClockIcon, FireIcon, NewspaperIcon, EyeIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { NewsBase } from '@/types/news';
+import { FaEye, FaCalendarAlt, FaUser, FaTag } from 'react-icons/fa';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
