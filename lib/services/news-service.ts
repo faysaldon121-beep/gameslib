@@ -5,6 +5,15 @@ import { NewsBase, NewsDetail } from '@/types/news';
 import { hashIP } from '@/lib/utils/hash';
 
 export class NewsService {
+  // Helper function to safely convert date to ISO string
+  private static toISOString(date: any): string {
+    if (!date) return new Date().toISOString();
+    if (typeof date === 'string') return date;
+    if (date instanceof Date) return date.toISOString();
+    if (date.toISOString && typeof date.toISOString === 'function') return date.toISOString();
+    return new Date(date).toISOString();
+  }
+
   // Get latest news with pagination
   static async getLatestNews(limit = 24, page = 1) {
     try {
@@ -27,7 +36,7 @@ export class NewsService {
       console.log(`✅ Found ${news.length} news items, ${total} total`);
 
       return {
-        news: news.map(this.formatNews),
+        news: news.map(this.formatNews.bind(this)),
         total,
         pages: Math.ceil(total / limit),
         currentPage: page,
@@ -65,7 +74,7 @@ export class NewsService {
       console.log(`✅ Found ${news.length} news items in category ${category}`);
 
       return {
-        news: news.map(this.formatNews),
+        news: news.map(this.formatNews.bind(this)),
         total,
         pages: Math.ceil(total / limit),
         currentPage: page,
@@ -103,7 +112,7 @@ export class NewsService {
       console.log(`✅ Found ${news.length} news items for platform ${platform}`);
 
       return {
-        news: news.map(this.formatNews),
+        news: news.map(this.formatNews.bind(this)),
         total,
         pages: Math.ceil(total / limit),
         currentPage: page,
@@ -151,7 +160,7 @@ export class NewsService {
       console.log(`✅ Found ${news.length} news items for query "${query}"`);
 
       return {
-        news: news.map(this.formatNews),
+        news: news.map(this.formatNews.bind(this)),
         total,
         pages: Math.ceil(total / limit),
         currentPage: page,
@@ -182,7 +191,7 @@ export class NewsService {
 
       console.log(`✅ Found ${news.length} trending news items`);
 
-      return news.map(this.formatNews);
+      return news.map(this.formatNews.bind(this));
     } catch (error) {
       console.error('❌ Error fetching trending news:', error);
       return [];
@@ -235,7 +244,7 @@ export class NewsService {
 
       console.log(`✅ Found ${news.length} breaking news items`);
 
-      return news.map(this.formatNews);
+      return news.map(this.formatNews.bind(this));
     } catch (error) {
       console.error('❌ Error fetching breaking news:', error);
       return [];
@@ -339,7 +348,7 @@ export class NewsService {
 
       console.log(`✅ Found ${news.length} related news items`);
 
-      return news.map(this.formatNews);
+      return news.map(this.formatNews.bind(this));
     } catch (error) {
       console.error('❌ Error fetching related news:', error);
       return [];
@@ -468,7 +477,7 @@ export class NewsService {
     }
   }
 
-  // Format news for list view (correct types)
+  // ✅ Format news for list view (FIXED - handles date properly)
   private static formatNews(news: any): NewsBase {
     return {
       _id: news._id.toString(),
@@ -494,11 +503,11 @@ export class NewsService {
       views: news.views || 0,
       uniqueViews: news.uniqueViews || 0,
       shares: news.shares || { total: 0, twitter: 0, facebook: 0, reddit: 0 },
-      publishedAt: news.publishedAt?.toISOString() || news.createdAt?.toISOString(),
+      publishedAt: this.toISOString(news.publishedAt || news.createdAt),
     };
   }
 
-  // Format news for detail view (correct types with content and SEO)
+  // ✅ Format news for detail view (FIXED)
   private static formatNewsDetail(news: any): NewsDetail {
     return {
       ...this.formatNews(news),
