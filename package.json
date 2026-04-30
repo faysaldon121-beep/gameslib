@@ -51,7 +51,8 @@
     "@sanity/vision": "^3.22.0",
     "@sanity/code-input": "^5.0.0",
     "remark-breaks": "^4.0.0",
-    "lru-cache": "^10.0.0"
+    "lru-cache": "^10.0.0",
+    "@freemius/checkout": "^1.1.2"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
