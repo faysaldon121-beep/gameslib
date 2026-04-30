@@ -182,6 +182,9 @@ NewsSchema.index({ status: 1, platforms: 1, publishedAt: -1 });
 NewsSchema.index({ status: 1, views: -1 });
 NewsSchema.index({ status: 1, uniqueViews: -1 });
 NewsSchema.index({ title: 'text', excerpt: 'text', content: 'text' });
+NewsSchema.index({ slug: 1 }, { unique: true });
+// Other indexes... 
+NewsSchema.index({ status: 1, publishedAt: -1 }); NewsSchema.index({ status: 1, category: 1, publishedAt: -1 }); NewsSchema.index({ status: 1, platforms: 1, publishedAt: -1 }); NewsSchema.index({ status: 1, views: -1 }); NewsSchema.index({ status: 1, uniqueViews: -1 });
 
 // Auto-set publishedAt when status changes to published
 NewsSchema.pre('save', function (next) {
