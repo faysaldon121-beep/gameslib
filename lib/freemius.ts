@@ -1,7 +1,7 @@
 // lib/freemius.ts
 
-export const PRODUCT_ID = "YOUR_PRODUCT_ID";       // from Freemius dashboard
-export const PUBLIC_KEY = "pk_YOUR_PUBLIC_KEY";    // from Freemius dashboard
+export const PRODUCT_ID = "28785";       // from Freemius dashboard
+export const PUBLIC_KEY = "pk_d7411022d4ceb804ce70f87395953";    // from Freemius dashboard
 
 export const DONATION_TIERS = [
   {
